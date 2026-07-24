@@ -42,8 +42,8 @@ export default function Home() {
       {/* 1. HEADER */}
       <header className="flex items-center justify-between border-b border-[#111827] bg-[#080c15] px-5 py-3.5">
         <div className="text-[20px] font-semibold">
-          <span className="text-white">oia</span>
-          <span className="text-[#7F77DD]">24</span>
+          <span className="text-white">open</span>
+          <span className="text-[#7F77DD]">ia</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="relative flex h-2 w-2">
@@ -76,7 +76,7 @@ export default function Home() {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-medium text-white">
-                Asistente oia24
+                Asistente openia
               </span>
               <span className="flex items-center gap-1.5 text-xs text-[#94a3b8]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#1D9E75]" />

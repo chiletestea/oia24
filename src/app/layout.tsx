@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "oia24",
+  title: "openia",
   description:
     "Programas digitales guiados por IA, supervisados por un psicólogo clínico.",
 };
