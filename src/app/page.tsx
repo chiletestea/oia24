@@ -1,3 +1,5 @@
+import SalesBot from "@/components/SalesBot";
+
 const PROGRAMS = [
   {
     badge: "ANSIEDAD",
@@ -27,13 +29,6 @@ const PROGRAMS = [
     modules: "5 módulos · IA",
     price: "$4.990",
   },
-];
-
-const QUICK_REPLIES = [
-  { text: "La ansiedad no me deja vivir", active: true },
-  { text: "El trabajo me tiene agotado", active: false },
-  { text: "Mi mente no para nunca", active: false },
-  { text: "Necesito herramientas rápidas", active: false },
 ];
 
 export default function Home() {
@@ -69,57 +64,7 @@ export default function Home() {
 
       {/* 3. CHATBOT VENDEDOR */}
       <section className="px-5 pb-6">
-        <div className="rounded-xl border border-[#1a2035] bg-[#0d1117] p-3.5">
-          <div className="mb-3 flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#1a2035] bg-[#080c15] text-xs font-semibold text-[#7F77DD]">
-              IA
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-white">
-                Asistente openia
-              </span>
-              <span className="flex items-center gap-1.5 text-xs text-[#94a3b8]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#1D9E75]" />
-                En línea ahora
-              </span>
-            </div>
-          </div>
-
-          <div className="mb-3 max-w-[85%] rounded-lg border border-[#1a2035] bg-[#0d1117] px-3 py-2 text-sm text-white">
-            Hola, ¿en qué área quieres trabajar hoy?
-          </div>
-
-          <div className="mb-3 flex flex-wrap gap-2">
-            {QUICK_REPLIES.map((reply) => (
-              <button
-                key={reply.text}
-                type="button"
-                className={
-                  reply.active
-                    ? "rounded-full border border-[#7F77DD] px-3 py-1.5 text-xs text-[#7F77DD]"
-                    : "rounded-full border border-[#1a2035] px-3 py-1.5 text-xs text-[#94a3b8]"
-                }
-              >
-                {reply.text}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Escribe tu duda..."
-              disabled
-              className="flex-1 rounded-full border border-[#1a2035] bg-[#080c15] px-4 py-2 text-sm text-white placeholder-[#4a5568] outline-none"
-            />
-            <button
-              type="button"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#7F77DD] text-white"
-            >
-              →
-            </button>
-          </div>
-        </div>
+        <SalesBot />
       </section>
 
       {/* 4. PROGRAMAS */}
