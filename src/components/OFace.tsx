@@ -2,9 +2,9 @@
 
 export type Emotion = "normal" | "listening" | "worried" | "crisis";
 
-const BG = "#050810";
-const ACCENT = "#7F77DD";
-const ACCENT_DARK = "#332E63";
+const RING_DARK = "#0e8b6b";
+const FEATURE = "#ffffff";
+const IRIS = "#0e8b6b";
 
 const TRANSITION = "transform 300ms ease, opacity 300ms ease";
 
@@ -13,7 +13,7 @@ interface EmotionConfig {
   eyebrowAngle: number;
   /** escala del ojo (esclerótica) completo */
   eyeScale: number;
-  /** escala de la pupila dentro del ojo */
+  /** escala de la pupila dentro del ojo (dilatación) */
   pupilScale: number;
   mouth: "smile" | "line" | "o";
 }
@@ -22,7 +22,7 @@ const EMOTION_CONFIG: Record<Emotion, EmotionConfig> = {
   normal: { eyebrowAngle: 0, eyeScale: 1, pupilScale: 1, mouth: "smile" },
   listening: { eyebrowAngle: -8, eyeScale: 1.12, pupilScale: 1.15, mouth: "line" },
   worried: { eyebrowAngle: -15, eyeScale: 1.18, pupilScale: 1.3, mouth: "line" },
-  crisis: { eyebrowAngle: -25, eyeScale: 1.28, pupilScale: 1.5, mouth: "o" },
+  crisis: { eyebrowAngle: -25, eyeScale: 1.28, pupilScale: 1.55, mouth: "o" },
 };
 
 function Eyebrow({
@@ -50,7 +50,7 @@ function Eyebrow({
         y1={cy}
         x2={cx + 7}
         y2={cy}
-        stroke={ACCENT}
+        stroke={FEATURE}
         strokeWidth={3}
         strokeLinecap="round"
       />
@@ -77,7 +77,7 @@ function Eye({
         transition: TRANSITION,
       }}
     >
-      <circle cx={cx} cy={cy} r={9} fill={BG} stroke={ACCENT} strokeWidth={2} />
+      <circle cx={cx} cy={cy} r={9} fill="#ffffff" stroke={FEATURE} strokeWidth={2} />
       <g
         style={{
           transform: `scale(${pupilScale})`,
@@ -85,7 +85,7 @@ function Eye({
           transition: TRANSITION,
         }}
       >
-        <circle cx={cx} cy={cy} r={4} fill={ACCENT_DARK} />
+        <circle cx={cx} cy={cy} r={4} fill={IRIS} />
       </g>
     </g>
   );
@@ -98,7 +98,7 @@ function Mouth({ mouth }: { mouth: EmotionConfig["mouth"] }) {
       <path
         d="M 38 66 Q 50 76 62 66"
         fill="none"
-        stroke={ACCENT}
+        stroke={FEATURE}
         strokeWidth={3}
         strokeLinecap="round"
         style={{
@@ -112,7 +112,7 @@ function Mouth({ mouth }: { mouth: EmotionConfig["mouth"] }) {
       <path
         d="M 40 68 L 60 68"
         fill="none"
-        stroke={ACCENT}
+        stroke={FEATURE}
         strokeWidth={3}
         strokeLinecap="round"
         style={{
@@ -122,13 +122,13 @@ function Mouth({ mouth }: { mouth: EmotionConfig["mouth"] }) {
           transition: TRANSITION,
         }}
       />
-      {/* crisis: "O" de preocupación */}
+      {/* crisis: "O" de preocupación, boca dilatada */}
       <circle
         cx={50}
         cy={69}
         r={6}
         fill="none"
-        stroke={ACCENT}
+        stroke={FEATURE}
         strokeWidth={3}
         style={{
           opacity: mouth === "o" ? 1 : 0,
@@ -145,9 +145,16 @@ interface OFaceProps {
   emotion?: Emotion;
   size?: number;
   className?: string;
+  /** aplica la animación de respiración (para el hero) */
+  breathing?: boolean;
 }
 
-export default function OFace({ emotion = "normal", size = 40, className }: OFaceProps) {
+export default function OFace({
+  emotion = "normal",
+  size = 40,
+  className,
+  breathing = false,
+}: OFaceProps) {
   const config = EMOTION_CONFIG[emotion];
 
   return (
@@ -155,11 +162,17 @@ export default function OFace({ emotion = "normal", size = 40, className }: OFac
       viewBox="0 0 100 100"
       width={size}
       height={size}
-      className={className}
+      className={`${breathing ? "animate-breathe" : ""} ${className ?? ""}`}
       role="img"
       aria-label={`O — estado: ${emotion}`}
     >
-      <circle cx={50} cy={50} r={47} fill={BG} stroke={ACCENT} strokeWidth={3} />
+      <defs>
+        <radialGradient id="o-gradient" cx="35%" cy="30%" r="75%">
+          <stop offset="0%" stopColor="#2fc492" />
+          <stop offset="100%" stopColor={RING_DARK} />
+        </radialGradient>
+      </defs>
+      <circle cx={50} cy={50} r={47} fill="url(#o-gradient)" stroke={RING_DARK} strokeWidth={1} />
       <Eyebrow cx={34} cy={30} angle={config.eyebrowAngle} />
       <Eyebrow cx={66} cy={30} angle={config.eyebrowAngle} mirror />
       <Eye cx={34} cy={42} eyeScale={config.eyeScale} pupilScale={config.pupilScale} />

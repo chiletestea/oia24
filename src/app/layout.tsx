@@ -8,9 +8,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "openia",
+  title: "openia — Encuentra tu calma",
   description:
-    "Programas digitales guiados por IA, supervisados por un psicólogo clínico.",
+    "Conversaciones guiadas por IA que te ayudan a respirar, supervisadas por un psicólogo clínico.",
 };
 
 export default function RootLayout({
