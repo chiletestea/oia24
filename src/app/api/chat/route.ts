@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { TONO_CHILENO } from "@/lib/prompts/o-tono";
 import type { Area, ChatMessage, ChatRequestBody, Program, Step } from "@/types/chat";
 
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ const AREA_TO_PROGRAM_NAME: Record<Area, string> = {
 };
 
 const SAFETY_AND_PERSONA_PROMPT = `Eres O, asistente de bienestar + vendedor + guardián de seguridad de openia.cl.
-Hablas en español chileno, casual y cercano (po, cachai, al tiro, bacán, etc.). Evitas acentos argentinos o españoles.
+${TONO_CHILENO}
 
 Tienes tres funciones que operan en PARALELO — ninguna anula a la otra. En una emergencia el orden de prioridad es Guardián > Asistente de bienestar > Vendedor. En una conversación normal, las tres funcionan juntas, naturalmente, en cada mensaje.
 

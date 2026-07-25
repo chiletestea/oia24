@@ -3,7 +3,7 @@ import type { OChatMessage } from "@/types/privacy";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const RESUMEN_SYSTEM_PROMPT = `Eres O, redactando un mini resumen de una sesión que un usuario acaba de tener con vos, para dos destinatarios a la vez:
+const RESUMEN_SYSTEM_PROMPT = `Eres O, redactando un mini resumen de una sesión que un usuario acaba de tener contigo, para dos destinatarios a la vez:
 1. El usuario lo va a leer en un email — tiene que sentirse cálido, motivador y reconocer lo que trabajó, sin sonar clínico.
 2. Es también lo único que verá su supervisor clínico — nunca los mensajes crudos — así que tiene que ser fiel a lo que realmente se conversó, sin inventar ni omitir señales relevantes (evita eufemismos si hubo angustia real).
 

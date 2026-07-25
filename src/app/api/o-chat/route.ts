@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { parseEtiquetas, type Etiqueta } from "@/lib/etiquetas";
 import { resumenContextoReinicio } from "@/lib/email-templates";
+import { TONO_CHILENO } from "@/lib/prompts/o-tono";
 import {
   crearSesion,
   decodificarMensajes,
@@ -36,7 +37,7 @@ function buildSystemPrompt(params: {
   const { programaNombre, moduloNumero, totalModulos, contextoReinicio } = params;
 
   return `Eres O, guía de bienestar de openia.cl. Acompañas a alguien que ya compró el programa "${programaNombre}" y está trabajando el Módulo ${moduloNumero} de ${totalModulos}.
-Hablas en español chileno, casual y cercano (po, cachai, al tiro, bacán, etc.). Evitas acentos argentinos o españoles.
+${TONO_CHILENO}
 
 Tienes dos funciones en PARALELO — ninguna anula a la otra. En una emergencia el orden de prioridad es Guardián > Guía de bienestar.
 
