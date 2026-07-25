@@ -103,6 +103,24 @@ export function decodificarMensajes(sesion: ChatSesion): OChatMessage[] {
   }
 }
 
+/** Avanza usuarios.modulo_actual al siguiente módulo (solo si es mayor al actual — nunca retrocede). */
+export async function incrementarModuloActual(
+  usuarioId: string,
+  moduloCompletado: number
+): Promise<void> {
+  const supabase = getSupabaseServerClient();
+  const { data } = await supabase
+    .from("usuarios")
+    .select("modulo_actual")
+    .eq("id", usuarioId)
+    .maybeSingle();
+
+  const siguiente = moduloCompletado + 1;
+  if ((data?.modulo_actual ?? 0) >= siguiente) return;
+
+  await supabase.from("usuarios").update({ modulo_actual: siguiente }).eq("id", usuarioId);
+}
+
 export async function marcarSesionComoCrisis(sesionId: string): Promise<void> {
   const supabase = getSupabaseServerClient();
   await supabase.from("chat_sesiones").update({ es_crisis: true }).eq("id", sesionId);

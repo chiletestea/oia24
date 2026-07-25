@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   }
 
   const { usuario_id, programa_id, modulo, mensaje } = body;
-  if (!usuario_id || !programa_id || !modulo || typeof mensaje !== "string") {
+  if (!usuario_id || !programa_id || typeof modulo !== "number" || typeof mensaje !== "string") {
     return new Response("Faltan campos: usuario_id, programa_id, modulo, mensaje", {
       status: 400,
     });
