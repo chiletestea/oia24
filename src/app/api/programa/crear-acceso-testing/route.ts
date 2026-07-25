@@ -15,9 +15,35 @@ export const dynamic = "force-dynamic";
 // usuarios.id es FK obligatoria a auth.users(id) (ver supabase/schema.sql) —
 // no alcanza con generar un UUID cualquiera, hay que crear primero una
 // cuenta real de Supabase Auth vía el admin API y usar su id.
+//
+// Si EMAIL_TESTING_RESEND está seteada, la cuenta de testing usa ese email en
+// vez de uno inventado — así los emails de resumen llegan de verdad mientras
+// la cuenta de Resend siga en modo sandbox (solo entrega al email verificado
+// del dueño de la cuenta). Como usuarios.email es unique, cada vez que se usa
+// esta cuenta se borra la anterior con ese mismo email antes de crear la nueva.
 
 const PROGRAMA_NOMBRE = "Ansiedad Bajo Control";
 const SEIS_MESES_MS = 6 * 30 * 24 * 60 * 60 * 1000;
+
+async function borrarCuentaTestingPrevia(email: string): Promise<void> {
+  const supabase = getSupabaseServerClient();
+  const { data: previo } = await supabase
+    .from("usuarios")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (!previo) return;
+
+  const usuarioId = previo.id as string;
+  await Promise.all([
+    supabase.from("chat_sesiones").delete().eq("usuario_id", usuarioId),
+    supabase.from("evaluaciones").delete().eq("usuario_id", usuarioId),
+    supabase.from("modulos").delete().eq("usuario_id", usuarioId),
+  ]);
+  await supabase.from("usuarios").delete().eq("id", usuarioId);
+  await supabase.auth.admin.deleteUser(usuarioId);
+}
 
 export async function POST() {
   const supabase = getSupabaseServerClient();
@@ -37,7 +63,10 @@ export async function POST() {
   }
 
   const token = randomUUID();
-  const email = `testing-${randomUUID().slice(0, 8)}@openia.cl`;
+  const email = process.env.EMAIL_TESTING_RESEND ?? `testing-${randomUUID().slice(0, 8)}@openia.cl`;
+  if (process.env.EMAIL_TESTING_RESEND) {
+    await borrarCuentaTestingPrevia(email);
+  }
   const ahora = new Date();
   const vencimiento = new Date(ahora.getTime() + SEIS_MESES_MS);
 

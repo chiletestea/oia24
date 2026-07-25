@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-// Botón de la landing que crea una cuenta de testing (sin pago) y redirige
-// a la pantalla de bienvenida. Ver PASO 2 / integración de MercadoPago para
+// Botón de la landing que crea una cuenta de testing (sin pago) y entra
+// directo al chat del programa. Ver PASO 2 / integración de MercadoPago para
 // el reemplazo de este flujo por uno real.
 
 export default function AccederTestingButton() {
@@ -19,8 +19,8 @@ export default function AccederTestingButton() {
     try {
       const res = await fetch("/api/programa/crear-acceso-testing", { method: "POST" });
       if (!res.ok) throw new Error("No se pudo crear el acceso de testing");
-      const data = (await res.json()) as { redirect_url: string };
-      router.push(data.redirect_url);
+      const data = (await res.json()) as { token: string };
+      router.push(`/programa/${data.token}`);
     } catch {
       setError("No pudimos crear tu acceso. Intenta de nuevo.");
       setCargando(false);
@@ -35,7 +35,7 @@ export default function AccederTestingButton() {
         disabled={cargando}
         className="w-full rounded-full bg-[#1D9E75] px-7 py-3.5 text-base font-semibold text-white shadow-[0_8px_24px_-8px_rgba(29,158,117,0.6)] transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
       >
-        {cargando ? "Creando tu acceso..." : "Acceder para Testing"}
+        {cargando ? "Creando tu acceso..." : "Empezar ahora"}
       </button>
       {error && <p className="mt-2 text-center text-xs text-[#b3453a]">{error}</p>}
     </div>
