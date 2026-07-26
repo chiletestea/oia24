@@ -237,9 +237,6 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
 
   function handleConfirmSafety() {
     setCrisis(false);
-    setArea(undefined);
-    setStep("q1");
-    setMessages([makeMessage("assistant", SALUDO_INICIAL)]);
   }
 
   const showQ1Chips = step === "q1" && !isStreaming && !crisis;

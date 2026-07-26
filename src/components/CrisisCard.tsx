@@ -19,13 +19,13 @@ export default function CrisisCard({ onConfirmSafety }: CrisisCardProps) {
       </p>
       <ul className="mb-3 space-y-1 text-xs text-[#4a2e29]">
         <li>
-          <span className="font-semibold text-[#b3453a]">Emergencia:</span> *4141 (ambulancia)
+          <span className="font-semibold text-[#b3453a]">Línea de Prevención del Suicidio:</span> *4141 (24/7)
         </li>
         <li>
           <span className="font-semibold text-[#b3453a]">Salud Responde:</span> 600 360 7777
         </li>
         <li>
-          <span className="font-semibold text-[#b3453a]">DAMS (Drogas/Alcohol):</span> 800 200 818
+          <span className="font-semibold text-[#b3453a]">Fono Familia (VIF):</span> 149
         </li>
       </ul>
       <p className="mb-3 text-xs leading-relaxed text-[#8a4a41]">
