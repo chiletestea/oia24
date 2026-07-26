@@ -65,3 +65,4 @@ BASE
 - Orientación basada en evidencia (sin nombrarla)
 - Seguridad y límites claros
 `;
+// rebuild trigger
