@@ -38,6 +38,30 @@ const Q2_CHIPS: Record<"ansiedad" | "trabajo" | "mente", string[]> = {
   mente: ["Sí, rumiación constante", "Más bien ansiedad", "Bloqueos mentales", "No sé"],
 };
 
+const FRASES_INICIALES = [
+  "La ansiedad no me deja vivir",
+  "El trabajo me tiene agotado",
+  "Mi mente no para nunca",
+  "Necesito herramientas rápidas",
+  "No logro dormir bien",
+  "Siento pánico sin razón aparente",
+  "No puedo dejar de pensar en eso",
+  "Tengo miedo al futuro",
+  "Mis relaciones son complicadas",
+  "Mi pareja y yo discutimos mucho",
+  "Me siento solo y ansioso",
+  "No confío en mis decisiones",
+  "Nada me calma cuando me activo",
+  "Me cuesta controlar la preocupación",
+  "Quisiera entender qué me pasa",
+  "Necesito regulación emocional",
+];
+
+function obtenerFrasesAleatorias() {
+  const shuffled = [...FRASES_INICIALES].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 4);
+}
+
 interface DisplayMessage extends ChatMessage {
   time: string;
 }
@@ -124,6 +148,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingText, setPendingText] = useState("");
   const [inputValue, setInputValue] = useState("");
+  const [frasesHoy] = useState(() => obtenerFrasesAleatorias());
 
   const initialized = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -210,6 +235,16 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     setMessages(history);
     setArea(chip.area);
     setStep(chip.area === "urgente" ? "recommendation" : "q2");
+    void askBot(history);
+  }
+
+  function handleChipClick(frase: string) {
+    if (isStreaming || crisis) return;
+    const history = [...messages, makeMessage("user", frase)];
+    setMessages(history);
+    // Igual que el input libre: la frase va directo a O vía API, sin pasar
+    // por el flujo guiado Q2/recomendación.
+    setStep("freeform");
     void askBot(history);
   }
 
@@ -355,14 +390,14 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
         {(showQ1Chips || showQ2Chips) && (
           <div className="flex flex-wrap gap-2 border-t border-[#e3f3ee] bg-white px-3.5 pt-3">
             {showQ1Chips &&
-              Q1_CHIPS.map((chip) => (
+              frasesHoy.map((frase) => (
                 <button
-                  key={chip.text}
+                  key={frase}
                   type="button"
-                  onClick={() => handleQ1Chip(chip)}
+                  onClick={() => handleChipClick(frase)}
                   className="rounded-full border border-[#c7ebe0] bg-[rgba(29,158,117,0.06)] px-3 py-1.5 text-xs text-[#1a4d4d] transition-colors hover:border-[#1D9E75] hover:bg-[rgba(29,158,117,0.12)]"
                 >
-                  {chip.text}
+                  {frase}
                 </button>
               ))}
             {showQ2Chips &&
