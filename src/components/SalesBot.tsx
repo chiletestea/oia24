@@ -237,6 +237,13 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
 
   function handleConfirmSafety() {
     setCrisis(false);
+
+    // Agregar mensaje automático de refuerzo de O
+    const refuerzo = makeMessage(
+      "assistant",
+      "Me alivia saber que estás a salvo. Tu seguridad es lo primero. Si vuelves a sentirte en peligro o con ganas de hacerte daño, no dudes en pedir ayuda. ¿Cómo sigues con lo que me contabas?"
+    );
+    setMessages((prev) => [...prev, refuerzo]);
   }
 
   const showQ1Chips = step === "q1" && !isStreaming && !crisis;
