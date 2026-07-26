@@ -229,6 +229,9 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     const history = [...messages, makeMessage("user", trimmed)];
     setMessages(history);
     setInputValue("");
+    // Si el usuario escribe su propio mensaje en vez de usar un chip, sale
+    // del flujo guiado — los chips de q1/q2 no deben seguir mostrándose.
+    setStep("freeform");
     void askBot(history);
   }
 
