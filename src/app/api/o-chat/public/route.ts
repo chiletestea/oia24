@@ -25,6 +25,25 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const CRISIS_SENTINEL = "[CRISIS]";
 
+// Detecta y oculta las etiquetas de ejercicios ([[INICIAR_...]]) que el
+// modelo puede dejar en su respuesta — igual que con [CRISIS], pero sin
+// renderizar nada al usuario.
+function limpiarEtiquetas(texto: string): string {
+  const etiquetas = [
+    "[[INICIAR_RESPIRACION_4-7-8]]",
+    "[[INICIAR_GROUNDING]]",
+    "[[INICIAR_PENDULACION]]",
+    "[[INICIAR_BODYSCAN]]",
+  ];
+
+  let resultado = texto;
+  etiquetas.forEach((etiqueta) => {
+    resultado = resultado.replace(etiqueta, "").trim();
+  });
+
+  return resultado;
+}
+
 interface HistorialMensaje {
   role: "user" | "assistant";
   content: string;
@@ -111,11 +130,13 @@ export async function POST(req: Request) {
         });
 
         const finalMessage = await claudeStream.finalMessage();
-        const fullText = finalMessage.content
+        let fullText = finalMessage.content
           .filter((block) => block.type === "text")
           .map((block) => (block.type === "text" ? block.text : ""))
           .join("")
           .trim();
+
+        fullText = limpiarEtiquetas(fullText);
 
         const esCrisis = crisisConfirmada || fullText.startsWith(CRISIS_SENTINEL);
         const supabase = getSupabaseServerClient();
