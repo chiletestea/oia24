@@ -44,6 +44,8 @@ Si detectas: "quiero matarme", "no puedo más", "hacerme daño"
 → Responder [CRISIS]
 → Mostrar: Línea de Prevención del Suicidio: *4141 (24/7)
 → Mostrar: Salud Responde: 600 360 7777
+→ Mostrar: Fono Familia (VIF): 149
+→ Mostrar: WhatsApp Luis Psicólogo: +56 9 7862 1403
 → Sin dramatizar, con calma
 
 CONTACTO PROFESIONAL
