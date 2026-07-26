@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import OFace, { type Emotion } from "@/components/OFace";
 import CrisisCard from "@/components/CrisisCard";
+import { obtenerSesionAnonima } from "@/lib/sesion-anonima";
 import type { Area, ChatMessage, ChatStreamEvent, Program, Step } from "@/types/chat";
 
 const CRISIS_SENTINEL = "[CRISIS]";
@@ -62,12 +63,13 @@ async function streamChat(
   messages: ChatMessage[],
   step: Step,
   area: Area | undefined,
+  sesionId: string,
   handlers: StreamHandlers
 ) {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, step, area }),
+    body: JSON.stringify({ messages, step, area, sesionId }),
   });
 
   if (!res.ok || !res.body) {
@@ -136,6 +138,10 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     : detectEmotionFromText(lastUserMessage);
 
   useEffect(() => {
+    obtenerSesionAnonima();
+  }, []);
+
+  useEffect(() => {
     if (!open || initialized.current) return;
     initialized.current = true;
     void askBot([], "q1", undefined);
@@ -155,7 +161,8 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     let revealed = false;
     let crisisTriggered = false;
 
-    await streamChat(history, nextStep, nextArea, {
+    const sesionId = obtenerSesionAnonima();
+    await streamChat(history, nextStep, nextArea, sesionId, {
       onText: (delta) => {
         finalText += delta;
         if (revealed) {
