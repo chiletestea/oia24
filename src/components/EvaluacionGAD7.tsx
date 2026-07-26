@@ -1,6 +1,6 @@
 "use client";
 
-import EvaluacionLikertBase from "@/components/EvaluacionLikertBase";
+import EvaluacionLikertBase, { type InterpretacionResultado } from "@/components/EvaluacionLikertBase";
 
 // GAD-7 (Generalized Anxiety Disorder 7-item scale) — instrumento de
 // tamizaje público y validado. Score 0-21 (suma directa, sin ítems inversos).
@@ -28,6 +28,15 @@ const OPCIONES = [
   { valor: 3, etiqueta: "Casi todos los días" },
 ];
 
+// Puntos de corte estándar del GAD-7 (0-21): 0-4 mínimo, 5-9 leve,
+// 10-14 moderado, 15-21 significativo.
+function interpretarGAD7(score: number): InterpretacionResultado {
+  if (score <= 4) return { nivel: "Síntomas mínimos", color: "#1D9E75" };
+  if (score <= 9) return { nivel: "Síntomas leves", color: "#1D9E75" };
+  if (score <= 14) return { nivel: "Síntomas moderados", color: "#FFC107" };
+  return { nivel: "Síntomas significativos", color: "#F44336" };
+}
+
 interface EvaluacionGAD7Props {
   usuarioId: string;
   programaId: string;
@@ -51,6 +60,7 @@ export default function EvaluacionGAD7({
       programaId={programaId}
       moduloNumero={moduloNumero}
       onComplete={onComplete}
+      interpretar={interpretarGAD7}
     />
   );
 }
