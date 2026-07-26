@@ -64,7 +64,7 @@ export default function Home() {
         </div>
 
         <h1 className="text-[30px] font-semibold leading-snug text-[#1a4d4d]">
-          Hola, soy O - Tu asistente de bienestar
+          Hola, soy O - Tu asistente de bienestar emocional
         </h1>
         <p className="mt-2 max-w-xs text-sm text-[#4a6f6a]">
           Conversaciones privadas, 100% gratis, 24/7. Sin límites.
@@ -79,7 +79,7 @@ export default function Home() {
         </button>
 
         <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-[#c7ebe0] bg-white/60 px-3 py-1.5 text-xs text-[#1D9E75]">
-          <span>✓</span> 100% privado · Sin diagnósticos
+          <span>✓</span> 100% privado · Sin diagnósticos · Sin guardar datos
         </div>
       </section>
 
@@ -106,10 +106,7 @@ export default function Home() {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-medium text-[#1a4d4d]">
-                Luis Tapia
-              </span>
-              <span className="text-xs text-[#5a7d78]">
-                Psicólogo Clínico · Supervisor IA
+                IA supervisada por un psicólogo clínico
               </span>
             </div>
           </div>
@@ -121,7 +118,7 @@ export default function Home() {
 
       {/* FOOTER */}
       <footer className="px-5 pb-28 pt-2 text-center text-xs text-[#8fb3ac]">
-        Privacidad total · Sin datos almacenados · Ley 21.719
+        Privacidad total · Sin datos almacenados
       </footer>
 
       {/* BOTÓN FLOTANTE */}
