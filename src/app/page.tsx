@@ -4,36 +4,38 @@ import { useState } from "react";
 import OFace from "@/components/OFace";
 import SalesBot from "@/components/SalesBot";
 
-const PROGRAMS = [
-  {
-    badge: "ANSIEDAD",
-    color: "#1D9E75",
-    title: "Ansiedad Bajo Control",
-    modules: "8 módulos · IA",
-    price: "$4.990",
-  },
-  {
-    badge: "TRABAJO",
-    color: "#149672",
-    title: "Respira en el Trabajo",
-    modules: "6 módulos · IA",
-    price: "$4.990",
-  },
-  {
-    badge: "REGULACIÓN",
-    color: "#0e8b6b",
-    title: "Regulación Express",
-    modules: "4 módulos · IA",
-    price: "$2.990",
-  },
-  {
-    badge: "MENTE",
-    color: "#2bb98a",
-    title: "Deja de Sobrepensar",
-    modules: "5 módulos · IA",
-    price: "$4.990",
-  },
-];
+// PROGRAMAS OCULTOS POR AHORA — Solo O disponible. Array conservado para
+// reactivar la sección fácilmente cuando corresponda.
+// const PROGRAMS = [
+//   {
+//     badge: "ANSIEDAD",
+//     color: "#1D9E75",
+//     title: "Ansiedad Bajo Control",
+//     modules: "8 módulos · IA",
+//     price: "$4.990",
+//   },
+//   {
+//     badge: "TRABAJO",
+//     color: "#149672",
+//     title: "Respira en el Trabajo",
+//     modules: "6 módulos · IA",
+//     price: "$4.990",
+//   },
+//   {
+//     badge: "REGULACIÓN",
+//     color: "#0e8b6b",
+//     title: "Regulación Express",
+//     modules: "4 módulos · IA",
+//     price: "$2.990",
+//   },
+//   {
+//     badge: "MENTE",
+//     color: "#2bb98a",
+//     title: "Deja de Sobrepensar",
+//     modules: "5 módulos · IA",
+//     price: "$4.990",
+//   },
+// ];
 
 export default function Home() {
   const [chatOpen, setChatOpen] = useState(false);
@@ -62,10 +64,10 @@ export default function Home() {
         </div>
 
         <h1 className="text-[30px] font-semibold leading-snug text-[#1a4d4d]">
-          Encuentra tu calma
+          Hola, soy O - Tu asistente de bienestar
         </h1>
         <p className="mt-2 max-w-xs text-sm text-[#4a6f6a]">
-          Conversaciones guiadas que te ayudan a respirar.
+          Conversaciones privadas, 100% gratis, 24/7. Sin límites.
         </p>
 
         <button
@@ -73,7 +75,7 @@ export default function Home() {
           onClick={() => setChatOpen(true)}
           className="mt-6 rounded-full bg-[#1D9E75] px-7 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_-8px_rgba(29,158,117,0.6)] transition-transform hover:scale-[1.02] active:scale-[0.98]"
         >
-          Empezar ahora
+          Hablar con O ahora
         </button>
 
         <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-[#c7ebe0] bg-white/60 px-3 py-1.5 text-xs text-[#1D9E75]">
@@ -81,35 +83,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* PROGRAMAS */}
-      <section className="px-5 pb-6">
-        <h2 className="mb-3 text-sm font-medium text-[#4a6f6a]">Programas guiados</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {PROGRAMS.map((program) => (
-            <div
-              key={program.title}
-              className="rounded-[14px] border border-[#e3f3ee] bg-white/80 p-3.5 shadow-sm transition-transform hover:-translate-y-0.5"
-            >
-              <span
-                className="text-[11px] font-semibold"
-                style={{ color: program.color }}
-              >
-                {program.badge}
-              </span>
-              <h3 className="mt-1.5 text-sm font-medium text-[#1a4d4d]">
-                {program.title}
-              </h3>
-              <p className="mt-1 text-xs text-[#5a7d78]">{program.modules}</p>
-              <p
-                className="mt-2 text-sm font-semibold"
-                style={{ color: program.color }}
-              >
-                {program.price}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* PROGRAMAS OCULTOS POR AHORA — Solo O disponible */}
 
       {/* SUPERVISOR */}
       <section className="px-5 pb-6">
