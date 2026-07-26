@@ -15,17 +15,25 @@ export const runtime = "nodejs";
 // /api/programa-chat — así el mismo streamChat() del frontend sirve para
 // los cuatro sin cambios.
 //
-// Solo guarda mensaje + respuesta de este turno (no el historial completo:
-// no hay sesión de chat persistente por diseño, cada turno es independiente
-// server-side — el frontend es quien mantiene el hilo visible).
+// Solo guarda mensaje + respuesta de este turno en la DB (no el historial
+// completo — sin sesión de chat persistente server-side). Sí acepta
+// `historial` opcional en el body para que el modelo tenga contexto de la
+// conversación en curso; ese historial lo mantiene el frontend (no se
+// persiste acá) y se manda de vuelta en cada request, igual que /api/chat.
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const CRISIS_SENTINEL = "[CRISIS]";
 
+interface HistorialMensaje {
+  role: "user" | "assistant";
+  content: string;
+}
+
 interface PublicChatBody {
   sesion_id?: string;
   mensaje?: string;
+  historial?: HistorialMensaje[];
 }
 
 function detectarTemas(texto: string): string[] {
@@ -51,6 +59,13 @@ export async function POST(req: Request) {
     return new Response("Faltan campos: sesion_id, mensaje", { status: 400 });
   }
 
+  const historial = Array.isArray(body.historial)
+    ? body.historial.filter(
+        (m): m is HistorialMensaje =>
+          (m.role === "user" || m.role === "assistant") && typeof m.content === "string"
+      )
+    : [];
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -64,7 +79,7 @@ export async function POST(req: Request) {
           model: "claude-sonnet-5",
           max_tokens: 500,
           system: SYSTEM_PROMPT_PUBLICO,
-          messages: [{ role: "user", content: mensaje }],
+          messages: [...historial, { role: "user" as const, content: mensaje }],
         });
 
         // Este system prompt (a diferencia de los otros de la app) no exige

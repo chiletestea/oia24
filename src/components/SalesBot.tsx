@@ -4,7 +4,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import OFace, { type Emotion } from "@/components/OFace";
 import CrisisCard from "@/components/CrisisCard";
 import { obtenerSesionAnonima } from "@/lib/sesion-anonima";
-import type { Area, ChatMessage, ChatStreamEvent, Program, Step } from "@/types/chat";
+import type { Area, ChatMessage, ChatStreamEvent, Step } from "@/types/chat";
+
+const SALUDO_INICIAL =
+  "Hola, soy O. Estoy aquí para escucharte, sin apuro y sin juicios. ¿Qué tienes en mente?";
 
 const CRISIS_SENTINEL = "[CRISIS]";
 
@@ -53,23 +56,24 @@ function makeMessage(role: ChatMessage["role"], content: string): DisplayMessage
 
 interface StreamHandlers {
   onText: (delta: string) => void;
-  onProgram: (program: Program) => void;
   onCrisis: () => void;
   onDone: () => void;
   onError: (message: string) => void;
 }
 
+// /api/o-chat/public no tiene sesión de chat persistente server-side: cada
+// request manda el mensaje actual + el historial previo (sin el mensaje
+// actual) para que O tenga contexto de la conversación en curso.
 async function streamChat(
-  messages: ChatMessage[],
-  step: Step,
-  area: Area | undefined,
+  mensaje: string,
+  historial: ChatMessage[],
   sesionId: string,
   handlers: StreamHandlers
 ) {
-  const res = await fetch("/api/chat", {
+  const res = await fetch("/api/o-chat/public", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, step, area, sesionId }),
+    body: JSON.stringify({ sesion_id: sesionId, mensaje, historial }),
   });
 
   if (!res.ok || !res.body) {
@@ -97,7 +101,6 @@ async function streamChat(
       try {
         const event = JSON.parse(line.slice("data: ".length)) as ChatStreamEvent;
         if (event.type === "text") handlers.onText(event.text);
-        else if (event.type === "program") handlers.onProgram(event.program);
         else if (event.type === "crisis") handlers.onCrisis();
         else if (event.type === "done") handlers.onDone();
         else if (event.type === "error") handlers.onError(event.message);
@@ -117,7 +120,6 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [step, setStep] = useState<Step>("q1");
   const [area, setArea] = useState<Area | undefined>(undefined);
-  const [program, setProgram] = useState<Program | null>(null);
   const [crisis, setCrisis] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingText, setPendingText] = useState("");
@@ -144,17 +146,21 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   useEffect(() => {
     if (!open || initialized.current) return;
     initialized.current = true;
-    void askBot([], "q1", undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Saludo estático: no hay un "mensaje" real que mandar a /api/o-chat/public
+    // en el primer turno, así que O abre la conversación sin llamar a la API.
+    setMessages([makeMessage("assistant", SALUDO_INICIAL)]);
   }, [open]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, pendingText, program, crisis]);
+  }, [messages, pendingText, crisis]);
 
-  async function askBot(history: ChatMessage[], nextStep: Step, nextArea: Area | undefined) {
+  async function askBot(history: ChatMessage[]) {
     setIsStreaming(true);
     setPendingText("");
+
+    const mensajeActual = history[history.length - 1]?.content ?? "";
+    const historialPrevio = history.slice(0, -1).map(({ role, content }) => ({ role, content }));
 
     let held = "";
     let finalText = "";
@@ -162,7 +168,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     let crisisTriggered = false;
 
     const sesionId = obtenerSesionAnonima();
-    await streamChat(history, nextStep, nextArea, sesionId, {
+    await streamChat(mensajeActual, historialPrevio, sesionId, {
       onText: (delta) => {
         finalText += delta;
         if (revealed) {
@@ -177,7 +183,6 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
         revealed = true;
         setPendingText(held);
       },
-      onProgram: (p) => setProgram(p),
       onCrisis: () => {
         crisisTriggered = true;
         setCrisis(true);
@@ -204,14 +209,8 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     const history = [...messages, makeMessage("user", chip.text)];
     setMessages(history);
     setArea(chip.area);
-
-    if (chip.area === "urgente") {
-      setStep("recommendation");
-      void askBot(history, "recommendation", "urgente");
-    } else {
-      setStep("q2");
-      void askBot(history, "q2", chip.area);
-    }
+    setStep(chip.area === "urgente" ? "recommendation" : "q2");
+    void askBot(history);
   }
 
   function handleQ2Chip(text: string) {
@@ -219,7 +218,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     const history = [...messages, makeMessage("user", text)];
     setMessages(history);
     setStep("recommendation");
-    void askBot(history, "recommendation", area);
+    void askBot(history);
   }
 
   function handleFreeformSubmit(e: FormEvent) {
@@ -230,16 +229,14 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     const history = [...messages, makeMessage("user", trimmed)];
     setMessages(history);
     setInputValue("");
-    void askBot(history, "freeform", area);
+    void askBot(history);
   }
 
   function handleConfirmSafety() {
     setCrisis(false);
-    setMessages([]);
-    setProgram(null);
     setArea(undefined);
     setStep("q1");
-    void askBot([], "q1", undefined);
+    setMessages([makeMessage("assistant", SALUDO_INICIAL)]);
   }
 
   const showQ1Chips = step === "q1" && !isStreaming && !crisis;
@@ -343,26 +340,6 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
           )}
 
           {crisis && <CrisisCard onConfirmSafety={handleConfirmSafety} />}
-
-          {program && !crisis && (
-            <div className="mb-3 animate-fade-in rounded-2xl border border-[#e3f3ee] bg-white p-3.5 shadow-sm">
-              <span className="text-[11px] font-semibold" style={{ color: program.color }}>
-                PROGRAMA RECOMENDADO
-              </span>
-              <h3 className="mt-1.5 text-sm font-medium text-[#1a4d4d]">{program.nombre}</h3>
-              <p className="mt-1 text-xs text-[#5a7d78]">{program.modulos} módulos · IA</p>
-              <p className="mt-2 text-sm font-semibold" style={{ color: program.color }}>
-                ${program.precio.toLocaleString("es-CL")}
-              </p>
-              <button
-                type="button"
-                className="mt-3 w-full rounded-full py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: program.color }}
-              >
-                Empezar →
-              </button>
-            </div>
-          )}
 
           <div ref={bottomRef} />
         </div>
