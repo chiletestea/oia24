@@ -25,12 +25,12 @@ function detectEmotionFromText(text: string): Emotion {
   return "normal";
 }
 
-const Q1_CHIPS: { text: string; area: Area }[] = [
-  { text: "La ansiedad no me deja vivir", area: "ansiedad" },
-  { text: "El trabajo me tiene agotado", area: "trabajo" },
-  { text: "Mi mente no para nunca", area: "mente" },
-  { text: "Necesito herramientas rápidas", area: "urgente" },
-];
+// const Q1_CHIPS: { text: string; area: Area }[] = [  // TODO: reactivar para programa Q1
+//   { text: "La ansiedad no me deja vivir", area: "ansiedad" },
+//   { text: "El trabajo me tiene agotado", area: "trabajo" },
+//   { text: "Mi mente no para nunca", area: "mente" },
+//   { text: "Necesito herramientas rápidas", area: "urgente" },
+// ];
 
 const Q2_CHIPS: Record<"ansiedad" | "trabajo" | "mente", string[]> = {
   ansiedad: ["Todo el día", "Por las noches", "En situaciones", "No sé"],
@@ -58,7 +58,13 @@ const FRASES_INICIALES = [
 ];
 
 function obtenerFrasesAleatorias() {
-  const shuffled = [...FRASES_INICIALES].sort(() => Math.random() - 0.5);
+  // Fisher-Yates real: .sort(() => Math.random() - 0.5) está sesgado y en la
+  // práctica casi nunca reordena los primeros elementos del array original.
+  const shuffled = [...FRASES_INICIALES];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   return shuffled.slice(0, 4);
 }
 
@@ -229,14 +235,14 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     });
   }
 
-  function handleQ1Chip(chip: { text: string; area: Area }) {
-    if (isStreaming || crisis) return;
-    const history = [...messages, makeMessage("user", chip.text)];
-    setMessages(history);
-    setArea(chip.area);
-    setStep(chip.area === "urgente" ? "recommendation" : "q2");
-    void askBot(history);
-  }
+  // function handleQ1Chip(chip: { text: string; area: Area }) {  // TODO: reactivar para programa Q1
+  //   if (isStreaming || crisis) return;
+  //   const history = [...messages, makeMessage("user", chip.text)];
+  //   setMessages(history);
+  //   setArea(chip.area);
+  //   setStep(chip.area === "urgente" ? "recommendation" : "q2");
+  //   void askBot(history);
+  // }
 
   function handleChipClick(frase: string) {
     if (isStreaming || crisis) return;
