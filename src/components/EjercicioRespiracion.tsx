@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-export default function EjercicioRespiracion() {
+interface EjercicioRespiracionProps {
+  onCalmaResponse?: (valor: number) => void;
+}
+
+export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespiracionProps) {
   const [estado, setEstado] = useState('reposo');
   const [cicloActual, setCicloActual] = useState(0);
   const [contador, setContador] = useState(4);
@@ -106,7 +110,18 @@ export default function EjercicioRespiracion() {
       respuesta = '¡Increíble! Lograste una calma profunda.';
     }
 
-    alert(respuesta);
+    if (onCalmaResponse) {
+      onCalmaResponse(valor);
+    } else {
+      alert(respuesta);
+    }
+
+    setTimeout(() => {
+      setMostrarEscala(false);
+      setMostrarAvatar(true);
+      setInstruccion('Gracias por hacer el ejercicio conmigo.');
+      document.body.style.overflow = 'auto';
+    }, 500);
   };
 
   const reiniciarParaOtroCiclo = () => {

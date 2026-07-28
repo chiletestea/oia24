@@ -347,7 +347,18 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                   overflow: "auto",
                 }}
               >
-                <EjercicioRespiracion />
+                <EjercicioRespiracion
+                  onCalmaResponse={(valor) => {
+                    const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
+                    const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
+                    setMessages(nuevosMensajes);
+
+                    // O responde automáticamente con refuerzo personalizado
+                    setTimeout(() => {
+                      void askBot(nuevosMensajes);
+                    }, 500);
+                  }}
+                />
               </div>
             )}
 
