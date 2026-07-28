@@ -60,7 +60,7 @@ export default function EjercicioGrounding({ onPresenciaResponse }: EjercicioGro
     }
   };
 
-  const sentidoActual = SENTIDOS[sentidoActualIdx];
+  const sentidoActual = sentidoActualIdx < SENTIDOS.length ? SENTIDOS[sentidoActualIdx] : null;
 
   const animacionEmoji = {
     ver: 'pulse 1.5s ease-in-out infinite',
@@ -105,7 +105,7 @@ export default function EjercicioGrounding({ onPresenciaResponse }: EjercicioGro
         }
       `
     };
-    return keyframesMap[sentidoActual.clase] || '';
+    return sentidoActual ? keyframesMap[sentidoActual.clase] || '' : '';
   };
 
   return (
@@ -151,7 +151,7 @@ export default function EjercicioGrounding({ onPresenciaResponse }: EjercicioGro
         {mostrarAvatar ? 'Estás anclado en el presente.' : 'Conecta con tus sentidos. Identifica una cosa para cada uno.'}
       </div>
 
-      {!mostrarAvatar && !mostrarEscala && (
+      {!mostrarAvatar && !mostrarEscala && sentidoActual && (
         <>
           <div style={{ maxWidth: '300px', margin: '0 auto 2rem' }}>
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '0.5rem' }}>
