@@ -1,48 +1,61 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 interface EjercicioRespiracionProps {
   onCalmaResponse?: (valor: number) => void;
 }
 
+const FASES = {
+  inspirar: {
+    duracion: 4,
+    etiqueta: 'Inspira lentamente...',
+    colorGradient: 'linear-gradient(135deg, #64b5f6 0%, #1976d2 100%)',
+    colorStroke: '#1976d2',
+    clase: 'inspirar',
+    escalaInicial: 1,
+    escalaFinal: 1.15,
+  },
+  sostener: {
+    duracion: 7,
+    etiqueta: 'Sostén la respiración...',
+    colorGradient: 'linear-gradient(135deg, #ffb74d 0%, #f57c00 100%)',
+    colorStroke: '#f57c00',
+    clase: 'sostener',
+    escalaInicial: 1.15,
+    escalaFinal: 1.15,
+  },
+  espirar: {
+    duracion: 8,
+    etiqueta: 'Exhala lentamente...',
+    colorGradient: 'linear-gradient(135deg, #ce93d8 0%, #7b1fa2 100%)',
+    colorStroke: '#7b1fa2',
+    clase: 'espirar',
+    escalaInicial: 1.15,
+    escalaFinal: 0.8,
+  },
+};
+
 export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespiracionProps) {
-  const [estado, setEstado] = useState('reposo');
-  const [cicloActual, setCicloActual] = useState(0);
-  const [contador, setContador] = useState(4);
-  const [mostrarAvatar, setMostrarAvatar] = useState(true);
-  const [mostrarCirculo, setMostrarCirculo] = useState(false);
-  const [mostrarProgreso, setMostrarProgreso] = useState(false);
+  const [mostrarAvatar, setMostrarAvatar] = useState(false);
   const [mostrarEscala, setMostrarEscala] = useState(false);
-  const [instruccion, setInstruccion] = useState('Respiración 4-7-8');
+  const [circuloColor, setCirculoColor] = useState(FASES.inspirar.colorGradient);
+  const [circuloStroke, setCirculoStroke] = useState(FASES.inspirar.colorStroke);
+  const [circuloScale, setCirculoScale] = useState(1);
+  const [circuloTransition, setCirculoTransition] = useState('fill 0.3s ease, stroke 0.3s ease');
+  const [instruccion, setInstruccion] = useState('Inspira lentamente...');
+  const [contador, setContador] = useState(4);
+  const [contadorClase, setContadorClase] = useState('inspirar');
+  const [cicloActual, setCicloActual] = useState(1);
   const [progreso, setProgreso] = useState(0);
-  const [botonText, setBotonText] = useState('Comenzar');
-  const [botonDisabled, setBotonDisabled] = useState(false);
-
-  // Limpia timers pendientes si el componente se desmonta a mitad del
-  // ejercicio (p.ej. al volver al chat) — evita setState sobre un
-  // componente ya desmontado.
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
 
   const iniciarEjercicio = () => {
-    setBotonDisabled(true);
-    setMostrarAvatar(false);
-    setMostrarCirculo(true);
-    setMostrarProgreso(true);
-    setMostrarEscala(false);
-    setInstruccion('Respiración 4-7-8');
-    ejecutarCiclo(1);
+    setCicloActual(1);
+    setProgreso(0);
+    continuarCiclo();
   };
 
-  const ejecutarCiclo = (ciclo: number) => {
+  const continuarCiclo = (ciclo = 1) => {
     if (ciclo > 3) {
       finalizarEjercicio();
       return;
@@ -50,89 +63,74 @@ export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespi
 
     setCicloActual(ciclo);
     setProgreso((ciclo / 3) * 100);
-
-    setEstado('inspirando');
-    setInstruccion('Toma aire lentamente...');
-    contarHasta(4, () => {
-      setEstado('sosteniendo');
-      setInstruccion('Sostén la respiración...');
-      contarHasta(7, () => {
-        setEstado('espirando');
-        setInstruccion('Bota aire lentamente...');
-        contarHasta(8, () => {
-          ejecutarCiclo(ciclo + 1);
-        });
-      });
-    });
+    ejecutarFases(ciclo);
   };
 
-  const contarHasta = (segundos: number, callback: () => void) => {
-    let restantes = segundos;
-    setContador(restantes);
+  const ejecutarFases = (ciclo: number) => {
+    const fases = ['inspirar', 'sostener', 'espirar'] as const;
+    let faseIdx = 0;
 
-    const interval = setInterval(() => {
-      restantes--;
-      setContador(Math.max(0, restantes));
+    const ejecutarFase = () => {
+      if (faseIdx >= fases.length) {
+        setTimeout(() => continuarCiclo(ciclo + 1), 1000);
+        return;
+      }
 
-      if (restantes <= 0) {
-        clearInterval(interval);
+      const fase = fases[faseIdx];
+      const config = FASES[fase];
+
+      ejecutarAnimacion(config, () => {
+        faseIdx++;
+        ejecutarFase();
+      });
+    };
+
+    ejecutarFase();
+  };
+
+  const ejecutarAnimacion = (config: typeof FASES.inspirar, callback: () => void) => {
+    setInstruccion(config.etiqueta);
+    setContadorClase(config.clase);
+    setCirculoColor(config.colorGradient);
+    setCirculoStroke(config.colorStroke);
+
+    // Transición de color sin movimiento inicial
+    setCirculoTransition('fill 0.6s ease-in-out, stroke 0.6s ease-in-out');
+    setCirculoScale(config.escalaInicial);
+
+    // Después de permitir cambio de color, comenzar animación de tamaño
+    setTimeout(() => {
+      setCirculoTransition(`transform ${config.duracion}s ease-in-out, fill 0.6s ease-in-out, stroke 0.6s ease-in-out`);
+      setCirculoScale(config.escalaFinal);
+    }, 50);
+
+    let tiempo = config.duracion;
+    setContador(tiempo);
+
+    const timerInterval = setInterval(() => {
+      tiempo--;
+      setContador(tiempo);
+
+      if (tiempo <= 0) {
+        clearInterval(timerInterval);
         callback();
       }
     }, 1000);
-
-    intervalRef.current = interval;
   };
 
   const finalizarEjercicio = () => {
-    setMostrarCirculo(false);
-    setMostrarProgreso(false);
     setMostrarAvatar(true);
-    setEstado('completado');
-    setInstruccion('✓ ¡Lo hiciste excelente!');
-    setBotonText('Repetir');
-    setBotonDisabled(false);
-
-    timeoutRef.current = setTimeout(() => {
+    setTimeout(() => {
       setMostrarEscala(true);
     }, 1500);
   };
 
-  const procesarRespuestaCalma = (valor: number) => {
-    let respuesta = '';
-
-    if (valor <= 3) {
-      respuesta = 'Veo que aún hay tensión. ¿Hacemos otro ciclo?';
-    } else if (valor <= 5) {
-      respuesta = 'Bien, estás avanzando. ¿Un ciclo más?';
-    } else if (valor <= 7) {
-      respuesta = '¡Excelente! ¿Profundizamos con otro ciclo?';
-    } else {
-      respuesta = '¡Increíble! Lograste una calma profunda.';
-    }
-
+  const procesarCalma = (valor: number) => {
     if (onCalmaResponse) {
       onCalmaResponse(valor);
     } else {
-      alert(respuesta);
+      alert(`Gracias. Has llegado a un ${valor} de calma.`);
     }
-
-    setTimeout(() => {
-      setMostrarEscala(false);
-      setMostrarAvatar(true);
-      setInstruccion('Gracias por hacer el ejercicio conmigo.');
-      document.body.style.overflow = 'auto';
-    }, 500);
-  };
-
-  const reiniciarParaOtroCiclo = () => {
-    setMostrarEscala(false);
-    setMostrarAvatar(false);
-    setMostrarCirculo(true);
-    setMostrarProgreso(true);
-    setInstruccion('Respiración 4-7-8');
-    setBotonText('Comenzar');
-    setBotonDisabled(false);
-    ejecutarCiclo(1);
   };
 
   const volverAlChat = () => {
@@ -143,6 +141,13 @@ export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespi
 
   return (
     <div style={{ textAlign: 'center', padding: '2rem', position: 'relative', minHeight: '600px' }}>
+      <style>{`
+        .contador-inspirar { color: #1976d2; }
+        .contador-sostener { color: #f57c00; }
+        .contador-espirar { color: #7b1fa2; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
+
       <button
         onClick={volverAlChat}
         style={{
@@ -157,65 +162,138 @@ export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespi
           height: '40px',
           fontSize: '22px',
           cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 'bold',
         }}
       >
         ✕
       </button>
 
       {mostrarAvatar && (
-        <div style={{ width: '160px', height: '160px', borderRadius: '50%', background: '#1D9E75', margin: '0 auto 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: '50px' }}>◯◯</span>
-        </div>
-      )}
-
-      <div style={{ fontSize: '22px', fontWeight: '500', marginBottom: '1.5rem', color: '#333', minHeight: '35px' }}>
-        {instruccion}
-      </div>
-
-      {mostrarProgreso && (
-        <div style={{ margin: '0 auto 2rem', maxWidth: '350px' }}>
-          <div style={{ fontSize: '13px', color: '#666', marginBottom: '0.8rem', fontWeight: '500' }}>
-            Ciclo {cicloActual} de 3
-          </div>
-          <div style={{ width: '100%', height: '10px', background: '#e0e0e0', borderRadius: '5px', overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: '#1D9E75', width: progreso + '%', transition: 'width 0.3s', borderRadius: '5px' }} />
-          </div>
-        </div>
-      )}
-
-      {mostrarCirculo && (
         <div
-          key={`${cicloActual}-${estado}`}
-          style={{ width: '220px', height: '220px', border: '5px solid #1D9E75', borderRadius: '50%', margin: '2rem auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 'bold', color: '#1D9E75', animation: estado === 'inspirando' ? 'respirar-inspirar 4s ease-in forwards' : estado === 'sosteniendo' ? 'respirar-sostener 7s ease-in-out forwards' : 'respirar-espirar 8s ease-out forwards' }}
+          style={{
+            width: '100px',
+            height: '100px',
+            borderRadius: '50%',
+            background: '#1D9E75',
+            margin: '0 auto 1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '40px',
+          }}
         >
-          {contador}
+          ◯◯
         </div>
       )}
 
-      <style>{`
-        @keyframes respirar-inspirar { from { transform: scale(1); } to { transform: scale(1.6); } }
-        @keyframes respirar-sostener { from { transform: scale(1.6); } to { transform: scale(1.6); } }
-        @keyframes respirar-espirar { from { transform: scale(1.6); } to { transform: scale(1); } }
-      `}</style>
-
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '2rem', flexWrap: 'wrap' }}>
-        <button
-          onClick={botonText === 'Comenzar' ? iniciarEjercicio : reiniciarParaOtroCiclo}
-          disabled={botonDisabled}
-          style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '14px 40px', borderRadius: '28px', fontSize: '16px', fontWeight: '500', cursor: botonDisabled ? 'not-allowed' : 'pointer', opacity: botonDisabled ? 0.5 : 1 }}
-        >
-          {botonText}
-        </button>
+      <div style={{ fontSize: '24px', fontWeight: '500', marginBottom: '0.5rem', color: '#333' }}>
+        {mostrarAvatar ? '✓ ¡Lo hiciste excelente!' : 'Respiración 4-7-8'}
       </div>
+      <div style={{ fontSize: '14px', color: '#666', marginBottom: '2rem' }}>
+        {mostrarAvatar ? 'Tu cuerpo está más calmado.' : 'Regulariza tu sistema nervioso'}
+      </div>
+
+      {!mostrarAvatar && !mostrarEscala && (
+        <>
+          <div style={{ maxWidth: '300px', margin: '0 auto 2rem' }}>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '0.5rem' }}>
+              Ciclo {cicloActual} de 3
+            </div>
+            <div style={{ width: '100%', height: '8px', background: '#e0e0e0', borderRadius: '4px', overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  background: '#1D9E75',
+                  width: progreso + '%',
+                  transition: 'width 0.3s',
+                  borderRadius: '4px',
+                }}
+              />
+            </div>
+          </div>
+
+          <div
+            style={{
+              position: 'relative',
+              width: '320px',
+              height: '320px',
+              margin: '0 auto 2rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: '140px',
+                height: '140px',
+                borderRadius: '50%',
+                background: circuloColor,
+                border: `6px solid ${circuloStroke}`,
+                transform: `scale(${circuloScale})`,
+                transition: circuloTransition,
+                willChange: 'transform',
+              }}
+            />
+          </div>
+
+          <div style={{ fontSize: '16px', fontWeight: '500', color: '#333', marginBottom: '1rem', height: '24px' }}>
+            {instruccion}
+          </div>
+          <div style={{ fontSize: '42px', fontWeight: '500', margin: '0.5rem 0' }} className={`contador-${contadorClase}`}>
+            {contador}
+          </div>
+          <div style={{ fontSize: '13px', color: '#666', marginTop: '1rem' }}>
+            Inspira 4 segundos • Sostén 7 segundos • Espira 8 segundos
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '2rem' }}>
+            <button
+              onClick={iniciarEjercicio}
+              style={{
+                background: '#1D9E75',
+                color: 'white',
+                border: 'none',
+                padding: '12px 32px',
+                borderRadius: '24px',
+                fontSize: '15px',
+                fontWeight: '500',
+                cursor: 'pointer',
+              }}
+            >
+              Comenzar
+            </button>
+          </div>
+        </>
+      )}
 
       {mostrarEscala && (
-        <div style={{ marginTop: '2rem' }}>
+        <div style={{ marginTop: '2rem', animation: 'fadeIn 0.5s ease-in' }}>
           <div style={{ fontSize: '18px', fontWeight: '500', marginBottom: '1.5rem', color: '#333' }}>
             ¿Qué tan calmado te sientes? (0 a 10)
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-              <button key={i} onClick={() => procesarRespuestaCalma(i)} style={{ width: '48px', height: '48px', borderRadius: '50%', border: i <= 3 ? '2px solid #d32f2f' : i >= 8 ? '2px solid #4caf50' : '2px solid #1D9E75', background: 'white', color: i <= 3 ? '#d32f2f' : i >= 8 ? '#4caf50' : '#1D9E75', fontWeight: '600', cursor: 'pointer', fontSize: '14px' }}>
+              <button
+                key={i}
+                onClick={() => procesarCalma(i)}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  border: i <= 3 ? '2px solid #d32f2f' : i >= 8 ? '2px solid #4caf50' : '2px solid #1D9E75',
+                  background: 'white',
+                  color: i <= 3 ? '#d32f2f' : i >= 8 ? '#4caf50' : '#1D9E75',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s',
+                }}
+              >
                 {i}
               </button>
             ))}
