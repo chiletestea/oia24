@@ -29,19 +29,11 @@ const CRISIS_SENTINEL = "[CRISIS]";
 // modelo puede dejar en su respuesta — igual que con [CRISIS], pero sin
 // renderizar nada al usuario.
 function limpiarEtiquetas(texto: string): string {
-  const etiquetas = [
-    "[[INICIAR_RESPIRACION_4-7-8]]",
-    "[[INICIAR_GROUNDING]]",
-    "[[INICIAR_PENDULACION]]",
-    "[[INICIAR_BODYSCAN]]",
-  ];
-
-  let resultado = texto;
-  etiquetas.forEach((etiqueta) => {
-    resultado = resultado.replace(etiqueta, "").trim();
-  });
-
-  return resultado;
+  return texto
+    .replace(/\[\[.*?\]\]/g, "")
+    .replace(/\[CRISIS\]/g, "")
+    .replace(/\[EJERCICIO_RESPIRACION_4_7_8\]/g, "")
+    .trim();
 }
 
 interface HistorialMensaje {

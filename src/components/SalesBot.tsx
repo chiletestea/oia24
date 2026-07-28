@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import OFace, { type Emotion } from "@/components/OFace";
 import CrisisCard from "@/components/CrisisCard";
+import EjercicioRespiracion from "@/components/EjercicioRespiracion";
 import { obtenerSesionAnonima } from "@/lib/sesion-anonima";
 import type { Area, ChatMessage, ChatStreamEvent, Step } from "@/types/chat";
 
@@ -10,6 +11,11 @@ const SALUDO_INICIAL =
   "Hola, soy O. Estoy aquí para escucharte, sin apuro y sin juicios. ¿Qué tienes en mente?";
 
 const CRISIS_SENTINEL = "[CRISIS]";
+const EJERCICIO_RESPIRACION_SENTINEL = "[EJERCICIO_RESPIRACION_4_7_8]";
+
+function limpiarEtiquetas(texto: string): string {
+  return texto.replace(EJERCICIO_RESPIRACION_SENTINEL, "").trim();
+}
 
 const WORRIED_PATTERN = /ansiedad|estr[eé]s|preocupad/i;
 const CRISIS_KEYWORD_PATTERN = /urgente|ayuda|crisis/i;
@@ -325,6 +331,26 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
 
         {/* Historial de mensajes estilo WhatsApp */}
         <div className="flex-1 overflow-y-auto bg-[#f7fdfb] px-3.5 py-3">
+          {step === "freeform" &&
+            messages.length > 0 &&
+            messages[messages.length - 1].role === "assistant" &&
+            messages[messages.length - 1].content.includes(EJERCICIO_RESPIRACION_SENTINEL) && (
+              <div
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  background: "white",
+                  zIndex: 9999,
+                  overflow: "auto",
+                }}
+              >
+                <EjercicioRespiracion />
+              </div>
+            )}
+
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -344,7 +370,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     : "rounded-bl-sm bg-[#1D9E75] text-white"
                 }`}
               >
-                <p className="whitespace-pre-wrap">{msg.content}</p>
+                <p className="whitespace-pre-wrap">{limpiarEtiquetas(msg.content)}</p>
                 <span
                   className={`mt-1 block text-[10px] ${
                     msg.role === "user" ? "text-right text-[#1a4d4d]/50" : "text-left text-white/70"
