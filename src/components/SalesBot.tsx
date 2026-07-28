@@ -163,7 +163,7 @@ interface SalesBotProps {
 export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [step, setStep] = useState<Step>("q1");
-  const [area, setArea] = useState<Area | undefined>(undefined);
+  const [area] = useState<Area | undefined>(undefined); // setArea: TODO reactivar cuando se implemente area (ver handleQ1Chip comentado)
   const [crisis, setCrisis] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingText, setPendingText] = useState("");
