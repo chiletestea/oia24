@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 interface EjercicioRespiracionProps {
   onCalmaResponse?: (valor: number) => void;
+  onClose?: () => void;
 }
 
 const FASES = {
@@ -36,7 +37,7 @@ const FASES = {
   },
 };
 
-export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespiracionProps) {
+export default function EjercicioRespiracion({ onCalmaResponse, onClose }: EjercicioRespiracionProps) {
   const [mostrarAvatar, setMostrarAvatar] = useState(false);
   const [mostrarEscala, setMostrarEscala] = useState(false);
   const [circuloColor, setCirculoColor] = useState(FASES.inspirar.colorGradient);
@@ -134,8 +135,8 @@ export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespi
   };
 
   const volverAlChat = () => {
-    if (confirm('¿Volver al chat con O?')) {
-      console.log('Volver al chat');
+    if (onClose) {
+      onClose();
     }
   };
 
@@ -158,8 +159,8 @@ export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespi
           color: 'white',
           border: 'none',
           borderRadius: '50%',
-          width: '40px',
-          height: '40px',
+          width: '30px',
+          height: '30px',
           fontSize: '22px',
           cursor: 'pointer',
           display: 'flex',
@@ -229,8 +230,8 @@ export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespi
           >
             <div
               style={{
-                width: '140px',
-                height: '140px',
+                width: '182px',
+                height: '182px',
                 borderRadius: '50%',
                 background: circuloColor,
                 border: `6px solid ${circuloStroke}`,
