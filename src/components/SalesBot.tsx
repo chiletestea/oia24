@@ -405,7 +405,8 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
           {step === "freeform" &&
             messages.length > 0 &&
             messages[messages.length - 1].role === "assistant" &&
-            messages[messages.length - 1].content.includes(EJERCICIO_PENDULACION_SENTINEL) && (
+            messages[messages.length - 1].content.includes(EJERCICIO_PENDULACION_SENTINEL) &&
+            ejercicioCerradoIndex !== messages.length - 1 && (
               <div
                 style={{
                   position: "fixed",
@@ -427,6 +428,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                       void askBot(nuevosMensajes);
                     }, 500);
                   }}
+                  onClose={() => setEjercicioCerradoIndex(messages.length - 1)}
                 />
               </div>
             )}

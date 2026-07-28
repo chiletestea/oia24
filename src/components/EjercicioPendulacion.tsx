@@ -4,9 +4,10 @@ import { useState } from 'react';
 
 interface EjercicioPendulacionProps {
   onCalmaResponse?: (valor: number) => void;
+  onClose?: () => void;
 }
 
-export default function EjercicioPendulacion({ onCalmaResponse }: EjercicioPendulacionProps) {
+export default function EjercicioPendulacion({ onCalmaResponse, onClose }: EjercicioPendulacionProps) {
   const [mostrarAvatar, setMostrarAvatar] = useState(false);
   const [mostrarEscala, setMostrarEscala] = useState(false);
   const [oscilando, setOscilando] = useState(false);
@@ -38,13 +39,13 @@ export default function EjercicioPendulacion({ onCalmaResponse }: EjercicioPendu
   };
 
   const volverAlChat = () => {
-    if (confirm('¿Volver al chat con O?')) {
-      console.log('Volver al chat');
+    if (onClose) {
+      onClose();
     }
   };
 
   return (
-    <div style={{ textAlign: 'center', padding: '2rem', position: 'relative', minHeight: '600px' }}>
+    <div style={{ textAlign: 'center', maxWidth: '100%', margin: '0', padding: '1rem', position: 'relative', minHeight: '100vh', overflow: 'auto' }}>
       <style>{`
         @keyframes oscilar {
           0%, 100% { transform: translateX(-140px); }
@@ -91,7 +92,7 @@ export default function EjercicioPendulacion({ onCalmaResponse }: EjercicioPendu
 
       {!mostrarAvatar && !mostrarEscala && (
         <>
-          <div style={{ maxWidth: '500px', margin: '2rem auto', height: '400px', background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: '12px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2rem' }}>
+          <div style={{ width: '100%', maxWidth: '280px', height: '280px', margin: '0 auto 1rem', background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: '12px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2rem' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#e8f5e9', border: '2px solid #4caf50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', flexShrink: 0 }}>
                 🟢
