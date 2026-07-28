@@ -94,9 +94,9 @@ export default function EjercicioRespiracion({ onCalmaResponse }: EjercicioRespi
     setCirculoColor(config.colorGradient);
     setCirculoStroke(config.colorStroke);
 
-    // Transición de color sin movimiento inicial
+    // Transición de color solo, SIN resetear escala
     setCirculoTransition('fill 0.6s ease-in-out, stroke 0.6s ease-in-out');
-    setCirculoScale(config.escalaInicial);
+    // NO hacer setCirculoScale(config.escalaInicial) - mantener el anterior
 
     // Después de permitir cambio de color, comenzar animación de tamaño
     setTimeout(() => {
