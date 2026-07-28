@@ -48,8 +48,8 @@ export default function EjercicioPendulacion({ onCalmaResponse, onClose }: Ejerc
     <div style={{ textAlign: 'center', maxWidth: '100%', margin: '0', padding: '1rem', position: 'relative', minHeight: '100vh', overflow: 'auto' }}>
       <style>{`
         @keyframes oscilar {
-          0%, 100% { transform: translateX(-140px); }
-          50% { transform: translateX(140px); }
+          0%, 100% { transform: translateX(-36px); }
+          50% { transform: translateX(36px); }
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
@@ -92,36 +92,37 @@ export default function EjercicioPendulacion({ onCalmaResponse, onClose }: Ejerc
 
       {!mostrarAvatar && !mostrarEscala && (
         <>
-          <div style={{ width: '100%', maxWidth: '280px', height: '280px', margin: '0 auto 1rem', background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: '12px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2rem' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#e8f5e9', border: '2px solid #4caf50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', flexShrink: 0 }}>
+          <div style={{ width: '100%', maxWidth: '320px', margin: '0 auto 1rem', background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: '12px', position: 'relative', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem 0.5rem' }}>
+            <div style={{ textAlign: 'center', flexShrink: 0 }}>
+              <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#e8f5e9', border: '2px solid #4caf50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0, margin: '0 auto' }}>
                 🟢
               </div>
-              <div style={{ fontSize: '12px', fontWeight: '500', marginTop: '8px' }}>Seguridad</div>
+              <div style={{ fontSize: '11px', fontWeight: '500', marginTop: '6px' }}>Seguridad</div>
             </div>
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
               <div
                 style={{
-                  width: '40px',
-                  height: '40px',
+                  width: '32px',
+                  height: '32px',
                   borderRadius: '50%',
                   background: '#1D9E75',
                   boxShadow: '0 2px 8px rgba(29, 158, 117, 0.3)',
-                  animation: oscilando ? 'oscilar 3s ease-in-out infinite' : 'none'
+                  animation: oscilando ? 'oscilar 3s ease-in-out infinite' : 'none',
+                  flexShrink: 0
                 }}
               />
-              <div style={{ width: '280px', height: '2px', background: '#d0d0d0', position: 'relative' }}>
+              <div style={{ width: '100%', maxWidth: '140px', height: '2px', background: '#d0d0d0', position: 'relative' }}>
                 <div style={{ position: 'absolute', left: 0, top: '-8px', width: '4px', height: '18px', background: '#1D9E75', borderRadius: '2px' }} />
                 <div style={{ position: 'absolute', right: 0, top: '-8px', width: '4px', height: '18px', background: '#1D9E75', borderRadius: '2px' }} />
               </div>
             </div>
 
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#fff3e0', border: '2px solid #ff9800', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', flexShrink: 0 }}>
+            <div style={{ textAlign: 'center', flexShrink: 0 }}>
+              <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#fff3e0', border: '2px solid #ff9800', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0, margin: '0 auto' }}>
                 🟠
               </div>
-              <div style={{ fontSize: '12px', fontWeight: '500', marginTop: '8px' }}>Presencia</div>
+              <div style={{ fontSize: '11px', fontWeight: '500', marginTop: '6px' }}>Presencia</div>
             </div>
           </div>
 
