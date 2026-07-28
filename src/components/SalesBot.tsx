@@ -169,6 +169,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [pendingText, setPendingText] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [frasesHoy] = useState(() => obtenerFrasesAleatorias());
+  const [ejercicioCerrado, setEjercicioCerrado] = useState(false);
 
   const initialized = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -342,7 +343,8 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
           {step === "freeform" &&
             messages.length > 0 &&
             messages[messages.length - 1].role === "assistant" &&
-            messages[messages.length - 1].content.includes(EJERCICIO_RESPIRACION_SENTINEL) && (
+            messages[messages.length - 1].content.includes(EJERCICIO_RESPIRACION_SENTINEL) &&
+            !ejercicioCerrado && (
               <div
                 style={{
                   position: "fixed",
@@ -366,6 +368,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                       void askBot(nuevosMensajes);
                     }, 500);
                   }}
+                  onClose={() => setEjercicioCerrado(true)}
                 />
               </div>
             )}
