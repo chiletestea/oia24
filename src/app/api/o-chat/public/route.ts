@@ -33,6 +33,7 @@ function limpiarEtiquetas(texto: string): string {
     .replace(/\[\[.*?\]\]/g, "")
     .replace(/\[CRISIS\]/g, "")
     .replace(/\[EJERCICIO_RESPIRACION_4_7_8\]/g, "")
+    .replace(/\[EJERCICIO_GROUNDING_5_4_3_2_1\]/g, "")
     .trim();
 }
 

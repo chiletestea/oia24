@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import OFace, { type Emotion } from "@/components/OFace";
 import CrisisCard from "@/components/CrisisCard";
 import EjercicioRespiracion from "@/components/EjercicioRespiracion";
+import EjercicioGrounding from "@/components/EjercicioGrounding";
 import { obtenerSesionAnonima } from "@/lib/sesion-anonima";
 import type { Area, ChatMessage, ChatStreamEvent, Step } from "@/types/chat";
 
@@ -12,9 +13,13 @@ const SALUDO_INICIAL =
 
 const CRISIS_SENTINEL = "[CRISIS]";
 const EJERCICIO_RESPIRACION_SENTINEL = "[EJERCICIO_RESPIRACION_4_7_8]";
+const EJERCICIO_GROUNDING_SENTINEL = "[EJERCICIO_GROUNDING_5_4_3_2_1]";
 
 function limpiarEtiquetas(texto: string): string {
-  return texto.replace(EJERCICIO_RESPIRACION_SENTINEL, "").trim();
+  return texto
+    .replace(EJERCICIO_RESPIRACION_SENTINEL, "")
+    .replace(EJERCICIO_GROUNDING_SENTINEL, "")
+    .trim();
 }
 
 const WORRIED_PATTERN = /ansiedad|estr[eé]s|preocupad/i;
@@ -354,6 +359,35 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     setMessages(nuevosMensajes);
 
                     // O responde automáticamente con refuerzo personalizado
+                    setTimeout(() => {
+                      void askBot(nuevosMensajes);
+                    }, 500);
+                  }}
+                />
+              </div>
+            )}
+
+          {step === "freeform" &&
+            messages.length > 0 &&
+            messages[messages.length - 1].role === "assistant" &&
+            messages[messages.length - 1].content.includes(EJERCICIO_GROUNDING_SENTINEL) && (
+              <div
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  background: "white",
+                  zIndex: 9999,
+                  overflow: "auto",
+                }}
+              >
+                <EjercicioGrounding
+                  onPresenciaResponse={(valor) => {
+                    const respuestaTexto = `He llegado a un ${valor} de presencia (0-10)`;
+                    const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
+                    setMessages(nuevosMensajes);
                     setTimeout(() => {
                       void askBot(nuevosMensajes);
                     }, 500);
