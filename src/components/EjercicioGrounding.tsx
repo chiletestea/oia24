@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface EjercicioGroundingProps {
   onPresenciaResponse?: (valor: number) => void;
@@ -8,28 +8,30 @@ interface EjercicioGroundingProps {
 }
 
 const SENTIDOS = [
-  { nombre: 'Ver', emoji: '👁️', cantidad: 5, placeholder: 'Observa alrededor', clase: 'ver' },
-  { nombre: 'Tocar', emoji: '✋', cantidad: 4, placeholder: 'Toca texturas', clase: 'tocar' },
-  { nombre: 'Escuchar', emoji: '👂', cantidad: 3, placeholder: 'Escucha sonidos', clase: 'escuchar' },
-  { nombre: 'Oler', emoji: '👃', cantidad: 2, placeholder: 'Huele aromas', clase: 'oler' },
-  { nombre: 'Saborear', emoji: '👅', cantidad: 1, placeholder: 'Prueba sabores', clase: 'saborear' }
+  { nombre: 'Ver', emoji: '👁️', cantidad: 5, consigna: 'Observa alrededor', clase: 'ver' },
+  { nombre: 'Tocar', emoji: '✋', cantidad: 4, consigna: 'Toca texturas', clase: 'tocar' },
+  { nombre: 'Escuchar', emoji: '👂', cantidad: 3, consigna: 'Escucha sonidos', clase: 'escuchar' },
+  { nombre: 'Oler', emoji: '👃', cantidad: 2, consigna: 'Huele aromas', clase: 'oler' },
+  { nombre: 'Saborear', emoji: '👅', cantidad: 1, consigna: 'Prueba sabores', clase: 'saborear' }
 ];
 
 export default function EjercicioGrounding({ onPresenciaResponse, onClose }: EjercicioGroundingProps) {
   const [sentidoActualIdx, setSentidoActualIdx] = useState(0);
   const [mostrarAvatar, setMostrarAvatar] = useState(false);
   const [mostrarEscala, setMostrarEscala] = useState(false);
-  const [inputValue, setInputValue] = useState('');
   const [progreso, setProgreso] = useState(0);
+  const [dots, setDots] = useState('');
 
-  const getBotonText = (cantidad: number) => {
-    return cantidad === 1 ? 'La tengo' : 'Las tengo';
-  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots((prev) => (prev.length >= 3 ? '' : prev + '.'));
+    }, 400);
+    return () => clearInterval(interval);
+  }, []);
 
   const completarSentidoActual = () => {
     const nuevoIdx = sentidoActualIdx + 1;
     setSentidoActualIdx(nuevoIdx);
-    setInputValue('');
     const porcentaje = (nuevoIdx / SENTIDOS.length) * 100;
     setProgreso(porcentaje);
 
@@ -162,46 +164,23 @@ export default function EjercicioGrounding({ onPresenciaResponse, onClose }: Eje
             </div>
           </div>
 
-          <div style={{ background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: '12px', padding: '2rem 1.5rem', maxWidth: '400px', margin: '0 auto', textAlign: 'left', animation: 'slideIn 0.5s ease-in-out' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-              <div style={{ fontSize: '36px', animation: animacionEmoji[sentidoActual.clase as keyof typeof animacionEmoji] }}>
-                {sentidoActual.emoji}
-              </div>
-              <div>
-                <div style={{ fontSize: '18px', fontWeight: '500', color: '#333' }}>
-                  {sentidoActual.nombre}
-                </div>
-                <div style={{ fontSize: '14px', color: '#666' }}>
-                  {sentidoActual.cantidad} {sentidoActual.cantidad === 1 ? 'cosa' : 'cosas'}
-                </div>
-              </div>
+          <div style={{ background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: '12px', padding: '2rem 1.5rem', maxWidth: '400px', margin: '0 auto', animation: 'slideIn 0.5s ease-in-out' }}>
+            <div style={{ fontSize: '60px', animation: animacionEmoji[sentidoActual.clase as keyof typeof animacionEmoji] }}>
+              {sentidoActual.emoji}
             </div>
-
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={sentidoActual.placeholder}
-              autoFocus
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '1px solid #d0d0d0',
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontFamily: 'inherit',
-                marginBottom: '1rem'
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && inputValue.trim()) {
-                  completarSentidoActual();
-                }
-              }}
-            />
+            <div style={{ fontSize: '20px', fontWeight: '500', color: '#333', marginTop: '0.5rem' }}>
+              {sentidoActual.nombre}
+            </div>
+            <div style={{ fontSize: '14px', color: '#666', marginBottom: '1rem' }}>
+              {sentidoActual.cantidad} {sentidoActual.cantidad === 1 ? 'cosa' : 'cosas'}
+            </div>
+            <div style={{ fontSize: '15px', color: '#1D9E75', fontWeight: '500', marginBottom: '1.5rem', minHeight: '1.2em' }}>
+              {sentidoActual.consigna}
+              <span>{dots}</span>
+            </div>
 
             <button
               onClick={completarSentidoActual}
-              disabled={!inputValue.trim()}
               style={{
                 background: '#1D9E75',
                 color: 'white',
@@ -210,12 +189,11 @@ export default function EjercicioGrounding({ onPresenciaResponse, onClose }: Eje
                 borderRadius: '24px',
                 fontSize: '15px',
                 fontWeight: '500',
-                cursor: inputValue.trim() ? 'pointer' : 'not-allowed',
-                width: '100%',
-                opacity: inputValue.trim() ? 1 : 0.5
+                cursor: 'pointer',
+                width: '100%'
               }}
             >
-              {getBotonText(sentidoActual.cantidad)}
+              Lo tengo
             </button>
           </div>
         </>
