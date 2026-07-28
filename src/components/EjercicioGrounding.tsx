@@ -4,17 +4,18 @@ import { useState } from 'react';
 
 interface EjercicioGroundingProps {
   onPresenciaResponse?: (valor: number) => void;
+  onClose?: () => void;
 }
 
 const SENTIDOS = [
-  { nombre: 'Ver', emoji: '👁️', cantidad: 5, placeholder: 'Ej: una ventana, un libro...', clase: 'ver' },
-  { nombre: 'Tocar', emoji: '✋', cantidad: 4, placeholder: 'Ej: una almohada, mi ropa...', clase: 'tocar' },
-  { nombre: 'Escuchar', emoji: '👂', cantidad: 3, placeholder: 'Ej: un pájaro, el viento...', clase: 'escuchar' },
-  { nombre: 'Oler', emoji: '👃', cantidad: 2, placeholder: 'Ej: café, flores...', clase: 'oler' },
-  { nombre: 'Saborear', emoji: '👅', cantidad: 1, placeholder: 'Ej: mi boca, chicle...', clase: 'saborear' }
+  { nombre: 'Ver', emoji: '👁️', cantidad: 5, placeholder: 'Observa alrededor', clase: 'ver' },
+  { nombre: 'Tocar', emoji: '✋', cantidad: 4, placeholder: 'Toca texturas', clase: 'tocar' },
+  { nombre: 'Escuchar', emoji: '👂', cantidad: 3, placeholder: 'Escucha sonidos', clase: 'escuchar' },
+  { nombre: 'Oler', emoji: '👃', cantidad: 2, placeholder: 'Huele aromas', clase: 'oler' },
+  { nombre: 'Saborear', emoji: '👅', cantidad: 1, placeholder: 'Prueba sabores', clase: 'saborear' }
 ];
 
-export default function EjercicioGrounding({ onPresenciaResponse }: EjercicioGroundingProps) {
+export default function EjercicioGrounding({ onPresenciaResponse, onClose }: EjercicioGroundingProps) {
   const [sentidoActualIdx, setSentidoActualIdx] = useState(0);
   const [mostrarAvatar, setMostrarAvatar] = useState(false);
   const [mostrarEscala, setMostrarEscala] = useState(false);
@@ -55,8 +56,8 @@ export default function EjercicioGrounding({ onPresenciaResponse }: EjercicioGro
   };
 
   const volverAlChat = () => {
-    if (confirm('¿Volver al chat con O?')) {
-      console.log('Volver al chat');
+    if (onClose) {
+      onClose();
     }
   };
 
@@ -109,34 +110,33 @@ export default function EjercicioGrounding({ onPresenciaResponse }: EjercicioGro
   };
 
   return (
-    <div style={{ textAlign: 'center', padding: '2rem', position: 'relative', minHeight: '600px' }}>
+    <div style={{ textAlign: 'center', padding: '1rem', position: 'relative', minHeight: '600px', maxWidth: '100%' }}>
       <style>{`
         ${getKeyframes()}
         @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
-      <button
-        onClick={volverAlChat}
-        style={{
-          position: 'absolute',
-          top: '1rem',
-          right: '1rem',
-          background: '#d32f2f',
-          color: 'white',
-          border: 'none',
-          borderRadius: '50%',
-          width: '40px',
-          height: '40px',
-          fontSize: '22px',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 'bold'
-        }}
-      >
-        ✕
-      </button>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <button
+          onClick={volverAlChat}
+          style={{
+            background: '#d32f2f',
+            color: 'white',
+            border: 'none',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            fontSize: '22px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold'
+          }}
+        >
+          ✕
+        </button>
+      </div>
 
       {mostrarAvatar && (
         <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: '#1D9E75', margin: '0 auto 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px' }}>
@@ -147,7 +147,7 @@ export default function EjercicioGrounding({ onPresenciaResponse }: EjercicioGro
       <div style={{ fontSize: '24px', fontWeight: '500', marginBottom: '0.5rem', color: '#333' }}>
         {mostrarAvatar ? '✓ ¡Excelente!' : 'Anclaje sensorial 5-4-3-2-1'}
       </div>
-      <div style={{ fontSize: '14px', color: '#666', marginBottom: '2rem' }}>
+      <div style={{ fontSize: '14px', color: '#666', maxWidth: '320px', margin: '0 auto 2rem' }}>
         {mostrarAvatar ? 'Estás anclado en el presente.' : 'Conecta con tus sentidos. Identifica una cosa para cada uno.'}
       </div>
 
