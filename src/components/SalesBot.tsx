@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import OFace, { type Emotion } from "@/components/OFace";
 import CrisisCard from "@/components/CrisisCard";
 import EjercicioRespiracion from "@/components/EjercicioRespiracion";
@@ -171,6 +172,21 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [frasesHoy] = useState(() => obtenerFrasesAleatorias());
   const [ejercicioCerradoIndex, setEjercicioCerradoIndex] = useState<number | null>(null);
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const exerciseParam = searchParams.get('exercise');
+
+  function handleEjercicioClose() {
+    // Si se llegó directo desde landing con ?exercise=..., la X vuelve a landing.
+    // Si el ejercicio se activó dentro de un chat normal, la X solo cierra el
+    // overlay y vuelve al chat.
+    if (exerciseParam) {
+      router.push('/landing');
+    } else {
+      setEjercicioCerradoIndex(messages.length - 1);
+    }
+  }
+
   const initialized = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -200,6 +216,23 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, pendingText, crisis]);
+
+  useEffect(() => {
+    if (exerciseParam && messages.length === 0) {
+      const ejercicioMap: { [key: string]: string } = {
+        'respiracion': '[EJERCICIO_RESPIRACION_4_7_8]',
+        'grounding': '[EJERCICIO_GROUNDING_5_4_3_2_1]',
+        'pendulacion': '[EJERCICIO_PENDULACION]'
+      };
+
+      if (ejercicioMap[exerciseParam]) {
+        const tag = ejercicioMap[exerciseParam];
+        const initialMsg = makeMessage('assistant', `Vamos a hacer el ejercicio. ${tag}`);
+        setMessages([initialMsg]);
+        setStep("freeform");
+      }
+    }
+  }, [exerciseParam]);
 
   async function askBot(history: ChatMessage[]) {
     setIsStreaming(true);
@@ -368,7 +401,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                       void askBot(nuevosMensajes);
                     }, 500);
                   }}
-                  onClose={() => setEjercicioCerradoIndex(messages.length - 1)}
+                  onClose={handleEjercicioClose}
                 />
               </div>
             )}
@@ -399,7 +432,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                       void askBot(nuevosMensajes);
                     }, 500);
                   }}
-                  onClose={() => setEjercicioCerradoIndex(messages.length - 1)}
+                  onClose={handleEjercicioClose}
                 />
               </div>
             )}
@@ -430,7 +463,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                       void askBot(nuevosMensajes);
                     }, 500);
                   }}
-                  onClose={() => setEjercicioCerradoIndex(messages.length - 1)}
+                  onClose={handleEjercicioClose}
                 />
               </div>
             )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import OFace from "@/components/OFace";
 import SalesBot from "@/components/SalesBot";
 
@@ -131,7 +131,9 @@ export default function Home() {
         <OFace emotion="normal" size={64} />
       </button>
 
-      <SalesBot open={chatOpen} onClose={() => setChatOpen(false)} />
+      <Suspense fallback={null}>
+        <SalesBot open={chatOpen} onClose={() => setChatOpen(false)} />
+      </Suspense>
     </div>
   );
 }
