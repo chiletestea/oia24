@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   title: "openia — Encuentra tu calma",
   description:
     "Conversaciones guiadas por IA que te ayudan a respirar, supervisadas por un psicólogo clínico.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export const viewport: Viewport = {
