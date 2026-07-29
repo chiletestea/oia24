@@ -47,21 +47,21 @@ export default function LandingPage() {
       id: 'respiracion-4-7-8',
       title: 'Respiración 4-7-8',
       icon: '🫁',
-      desc: 'Para ansiedad aguda y estrés',
+      desc: 'Técnica respiratoria para regular el sistema nervioso y calmar la ansiedad',
       path: '/chat?exercise=respiracion',
     },
     {
       id: 'grounding-5-4-3-2-1',
       title: 'Grounding 5-4-3-2-1',
       icon: '🧭',
-      desc: 'Anclaje sensorial para crisis emocionales',
+      desc: 'Ancla tus sentidos al presente. Disminuye dissociación y pánico',
       path: '/chat?exercise=grounding',
     },
     {
       id: 'pendulacion',
       title: 'Pendulación',
       icon: '🌊',
-      desc: 'Movimiento bilateral para regulación',
+      desc: 'Oscila entre dos puntos. Integra emociones difíciles',
       path: '/chat?exercise=pendulacion',
     },
   ];
@@ -169,7 +169,7 @@ export default function LandingPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85dvh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b flex justify-between items-center p-4 sm:p-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">📚 Programas de Entrenamiento</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">📚 Programas de Entrenamiento (en desarrollo)</h2>
               <button
                 onClick={() => setActiveModal(null)}
                 aria-label="Cerrar"
