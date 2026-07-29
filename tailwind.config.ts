@@ -36,6 +36,13 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(16px) scale(0.98)" },
           "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
         },
+        "o-wink": {
+          "0%, 88%, 100%": { transform: "scaleY(1)" },
+          "90%": { transform: "scaleY(0.3)" },
+          "92%": { transform: "scaleY(1)" },
+          "94%": { transform: "scaleY(0.3)" },
+          "96%": { transform: "scaleY(1)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.25s ease-out",
@@ -43,6 +50,7 @@ const config: Config = {
         breathe: "breathe 4s ease-in-out infinite",
         "glow-pulse": "glow-pulse 2.6s ease-in-out infinite",
         "modal-in": "modal-in 0.25s ease-out",
+        "o-wink": "o-wink 6s ease-in-out infinite",
       },
     },
   },

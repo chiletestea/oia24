@@ -10,6 +10,12 @@
   --zen-dark: #0e8b6b;
 }
 
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   color: var(--foreground);
   background: linear-gradient(160deg, var(--background-start), var(--background-end));

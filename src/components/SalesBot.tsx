@@ -181,7 +181,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     // Si el ejercicio se activó dentro de un chat normal, la X solo cierra el
     // overlay y vuelve al chat.
     if (exerciseParam) {
-      router.push('/landing');
+      router.push('/');
     } else {
       setEjercicioCerradoIndex(messages.length - 1);
     }

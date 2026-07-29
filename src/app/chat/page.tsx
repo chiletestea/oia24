@@ -10,7 +10,7 @@ export default function ChatPage() {
 
   const handleClose = () => {
     setOpen(false);
-    router.push('/landing');
+    router.push('/');
   };
 
   return (
