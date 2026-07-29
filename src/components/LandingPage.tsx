@@ -87,7 +87,7 @@ export default function LandingPage() {
             {/* Ejercicios */}
             <button
               onClick={() => setActiveModal('exercises')}
-              className="w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-full bg-gradient-to-br from-teal-500/30 to-teal-600/10 border-2 border-white/20 flex flex-col items-center justify-center cursor-pointer hover:scale-110 hover:border-teal-500/60 hover:shadow-2xl transition-all duration-300 text-white font-semibold text-sm text-center p-2"
+              className="w-36 h-36 md:w-40 md:h-40 shrink-0 rounded-full bg-gradient-to-br from-teal-500/30 to-teal-600/10 border-2 border-white/20 flex flex-col items-center justify-center cursor-pointer hover:scale-110 hover:border-teal-500/60 hover:shadow-2xl transition-all duration-300 text-white font-semibold text-sm text-center p-2 leading-tight"
             >
               <span className="text-3xl mb-1">🌊</span>
               <span>Ejercicios<br />guiados</span>
@@ -96,7 +96,7 @@ export default function LandingPage() {
             {/* Chat */}
             <button
               onClick={() => router.push('/chat')}
-              className="w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-full bg-gradient-to-br from-blue-400/30 to-blue-500/10 border-2 border-white/20 flex flex-col items-center justify-center cursor-pointer hover:scale-110 hover:border-blue-500/60 hover:shadow-2xl transition-all duration-300 text-white font-semibold text-sm text-center p-2"
+              className="w-36 h-36 md:w-40 md:h-40 shrink-0 rounded-full bg-gradient-to-br from-blue-400/30 to-blue-500/10 border-2 border-white/20 flex flex-col items-center justify-center cursor-pointer hover:scale-110 hover:border-blue-500/60 hover:shadow-2xl transition-all duration-300 text-white font-semibold text-sm text-center p-2 leading-tight"
             >
               <span className="text-3xl mb-1">💬</span>
               <span>Chatea<br />con O</span>
@@ -105,7 +105,7 @@ export default function LandingPage() {
             {/* Programas */}
             <button
               onClick={() => setActiveModal('programs')}
-              className="w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-full bg-gradient-to-br from-orange-400/30 to-orange-500/10 border-2 border-white/20 flex flex-col items-center justify-center cursor-pointer hover:scale-110 hover:border-orange-500/60 hover:shadow-2xl transition-all duration-300 text-white font-semibold text-sm text-center p-2"
+              className="w-36 h-36 md:w-40 md:h-40 shrink-0 rounded-full bg-gradient-to-br from-orange-400/30 to-orange-500/10 border-2 border-white/20 flex flex-col items-center justify-center cursor-pointer hover:scale-110 hover:border-orange-500/60 hover:shadow-2xl transition-all duration-300 text-white font-semibold text-sm text-center p-2 leading-tight"
             >
               <span className="text-3xl mb-1">📚</span>
               <span>Programas<br />de entrenamiento</span>
