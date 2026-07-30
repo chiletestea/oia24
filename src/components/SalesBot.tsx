@@ -7,6 +7,7 @@ import CrisisCard from "@/components/CrisisCard";
 import EjercicioRespiracion from "@/components/EjercicioRespiracion";
 import EjercicioGrounding from "@/components/EjercicioGrounding";
 import EjercicioPendulacion from "@/components/EjercicioPendulacion";
+import EjercicioCuadrada from "@/components/EjercicioCuadrada";
 import { obtenerSesionAnonima } from "@/lib/sesion-anonima";
 import type { Area, ChatMessage, ChatStreamEvent, Step } from "@/types/chat";
 
@@ -17,17 +18,70 @@ const CRISIS_SENTINEL = "[CRISIS]";
 const EJERCICIO_RESPIRACION_SENTINEL = "[EJERCICIO_RESPIRACION_4_7_8]";
 const EJERCICIO_GROUNDING_SENTINEL = "[EJERCICIO_GROUNDING_5_4_3_2_1]";
 const EJERCICIO_PENDULACION_SENTINEL = "[EJERCICIO_PENDULACION]";
+const EJERCICIO_CUADRADA_SENTINEL = "[EJERCICIO_RESPIRACION_CUADRADA]";
 
 function limpiarEtiquetas(texto: string): string {
   return texto
     .replace(EJERCICIO_RESPIRACION_SENTINEL, "")
     .replace(EJERCICIO_GROUNDING_SENTINEL, "")
     .replace(EJERCICIO_PENDULACION_SENTINEL, "")
+    .replace(EJERCICIO_CUADRADA_SENTINEL, "")
     .trim();
 }
 
 const WORRIED_PATTERN = /ansiedad|estr[eé]s|preocupad/i;
 const CRISIS_KEYWORD_PATTERN = /urgente|ayuda|crisis/i;
+
+// Capa de recomendación: sugiere un ejercicio en base a palabras clave del
+// último mensaje del usuario. Es puramente aditiva — no reemplaza ni altera
+// las etiquetas [EJERCICIO_*] que O puede emitir directamente vía el prompt.
+type ExerciseKey = "respiracion" | "grounding" | "cuadrada" | "pendulacion";
+
+interface ExerciseInfo {
+  nombre: string;
+  minutos: number;
+  emoji: string;
+  tag: string;
+}
+
+const EXERCISE_INFO: Record<ExerciseKey, ExerciseInfo> = {
+  respiracion: { nombre: "Respiración 4-7-8", minutos: 5, emoji: "🫁", tag: EJERCICIO_RESPIRACION_SENTINEL },
+  grounding: { nombre: "Grounding 5-4-3-2-1", minutos: 3, emoji: "🧭", tag: EJERCICIO_GROUNDING_SENTINEL },
+  cuadrada: { nombre: "Respiración Cuadrada", minutos: 2, emoji: "🟦", tag: EJERCICIO_CUADRADA_SENTINEL },
+  pendulacion: { nombre: "Pendulación", minutos: 4, emoji: "🌊", tag: EJERCICIO_PENDULACION_SENTINEL },
+};
+
+const SYMPTOM_RULES: { pattern: RegExp; exercise: ExerciseKey; razon: string }[] = [
+  {
+    pattern: /ansiedad|p[aá]nico|asustad|miedo|pecho oprimido|ahogo/i,
+    exercise: "respiracion",
+    razon: "ayuda a calmar la alarma de tu cuerpo",
+  },
+  {
+    pattern: /disociad|flotando|irreal|desconectad|nube|ausente/i,
+    exercise: "grounding",
+    razon: "ayuda a reconectar con el presente",
+  },
+  {
+    pattern: /estr[eé]s|agitad|nervios|acelerad|inquiet|temblar/i,
+    exercise: "cuadrada",
+    razon: "es perfecta para regularizar tu sistema nervioso",
+  },
+  {
+    pattern: /llorar|abrumad|hundid|desesperad|crisis|angustia/i,
+    exercise: "pendulacion",
+    razon: "ayuda a equilibrar la emoción con una sensación de seguridad",
+  },
+];
+
+function detectarEjercicioRecomendado(texto: string): { exercise: ExerciseKey; razon: string } | null {
+  for (const regla of SYMPTOM_RULES) {
+    if (regla.pattern.test(texto)) {
+      return { exercise: regla.exercise, razon: regla.razon };
+    }
+  }
+  return null;
+}
 
 /**
  * Heurística puramente visual para la expresión de O: no reemplaza la
@@ -85,6 +139,10 @@ function obtenerFrasesAleatorias() {
 
 interface DisplayMessage extends ChatMessage {
   time: string;
+  recomendacion?: {
+    principal: ExerciseKey;
+    alternativas: ExerciseKey[];
+  };
 }
 
 function nowTime(): string {
@@ -97,6 +155,18 @@ function nowTime(): string {
 
 function makeMessage(role: ChatMessage["role"], content: string): DisplayMessage {
   return { role, content, time: nowTime() };
+}
+
+function makeRecomendacionMessage(exercise: ExerciseKey, razon: string): DisplayMessage {
+  const info = EXERCISE_INFO[exercise];
+  const contenido = `Recomendación: ${info.nombre} (~${info.minutos} min) - ${razon}.\n\n¿Quieres intentar?`;
+  return {
+    ...makeMessage("assistant", contenido),
+    recomendacion: {
+      principal: exercise,
+      alternativas: (Object.keys(EXERCISE_INFO) as ExerciseKey[]).filter((k) => k !== exercise),
+    },
+  };
 }
 
 interface StreamHandlers {
@@ -222,7 +292,8 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
       const ejercicioMap: { [key: string]: string } = {
         'respiracion': '[EJERCICIO_RESPIRACION_4_7_8]',
         'grounding': '[EJERCICIO_GROUNDING_5_4_3_2_1]',
-        'pendulacion': '[EJERCICIO_PENDULACION]'
+        'pendulacion': '[EJERCICIO_PENDULACION]',
+        'cuadrada': '[EJERCICIO_RESPIRACION_CUADRADA]'
       };
 
       if (ejercicioMap[exerciseParam]) {
@@ -273,6 +344,24 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
         const text = finalText.trim();
         if (!crisisTriggered && text) {
           setMessages((prev) => [...prev, makeMessage("assistant", text)]);
+
+          // O ya propuso un ejercicio directamente vía sentinel: no agregar
+          // una recomendación automática encima para no duplicar/contradecir.
+          const yaProponeEjercicio =
+            text.includes(EJERCICIO_RESPIRACION_SENTINEL) ||
+            text.includes(EJERCICIO_GROUNDING_SENTINEL) ||
+            text.includes(EJERCICIO_CUADRADA_SENTINEL) ||
+            text.includes(EJERCICIO_PENDULACION_SENTINEL);
+
+          if (!yaProponeEjercicio) {
+            const recomendacion = detectarEjercicioRecomendado(mensajeActual);
+            if (recomendacion) {
+              setMessages((prev) => [
+                ...prev,
+                makeRecomendacionMessage(recomendacion.exercise, recomendacion.razon),
+              ]);
+            }
+          }
         }
       },
       onError: (message) => {
@@ -322,6 +411,16 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     // del flujo guiado — los chips de q1/q2 no deben seguir mostrándose.
     setStep("freeform");
     void askBot(history);
+  }
+
+  function handleRecomendacionClick(exercise: ExerciseKey) {
+    if (isStreaming || crisis) return;
+    const tag = EXERCISE_INFO[exercise].tag;
+    // Mismo patrón que el useEffect de ?exercise=...: un mensaje de O con el
+    // sentinel embebido dispara el overlay del ejercicio correspondiente.
+    const history = [...messages, makeMessage("assistant", `Vamos a hacer el ejercicio. ${tag}`)];
+    setMessages(history);
+    setStep("freeform");
   }
 
   function handleConfirmSafety() {
@@ -468,6 +567,37 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
               </div>
             )}
 
+          {step === "freeform" &&
+            messages.length > 0 &&
+            messages[messages.length - 1].role === "assistant" &&
+            messages[messages.length - 1].content.includes(EJERCICIO_CUADRADA_SENTINEL) &&
+            ejercicioCerradoIndex !== messages.length - 1 && (
+              <div
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  background: "white",
+                  zIndex: 9999,
+                  overflow: "auto",
+                }}
+              >
+                <EjercicioCuadrada
+                  onCalmaResponse={(valor) => {
+                    const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
+                    const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
+                    setMessages(nuevosMensajes);
+                    setTimeout(() => {
+                      void askBot(nuevosMensajes);
+                    }, 500);
+                  }}
+                  onClose={handleEjercicioClose}
+                />
+              </div>
+            )}
+
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -488,6 +618,31 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                 }`}
               >
                 <p className="whitespace-pre-wrap">{limpiarEtiquetas(msg.content)}</p>
+                {msg.recomendacion && (
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleRecomendacionClick(msg.recomendacion!.principal)}
+                      disabled={isStreaming || crisis}
+                      className="rounded-xl border border-white/80 bg-white/15 px-3 py-2 text-left text-xs font-medium text-white transition-colors hover:bg-white/25 disabled:opacity-50"
+                    >
+                      {EXERCISE_INFO[msg.recomendacion.principal].emoji}{" "}
+                      {EXERCISE_INFO[msg.recomendacion.principal].nombre} - RECOMENDADA (
+                      {EXERCISE_INFO[msg.recomendacion.principal].minutos} min)
+                    </button>
+                    {msg.recomendacion.alternativas.map((ex) => (
+                      <button
+                        key={ex}
+                        type="button"
+                        onClick={() => handleRecomendacionClick(ex)}
+                        disabled={isStreaming || crisis}
+                        className="rounded-xl border border-white/40 bg-white/5 px-3 py-2 text-left text-xs text-white/90 transition-colors hover:bg-white/15 disabled:opacity-50"
+                      >
+                        {EXERCISE_INFO[ex].emoji} {EXERCISE_INFO[ex].nombre} ({EXERCISE_INFO[ex].minutos} min)
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <span
                   className={`mt-1 block text-[10px] ${
                     msg.role === "user" ? "text-right text-[#1a4d4d]/50" : "text-left text-white/70"
