@@ -30,6 +30,7 @@ const LINEAS: Record<Lado, { x1: number; y1: number; x2: number; y2: number }> =
 export default function EjercicioCuadrada({ onCalmaResponse, onClose }: EjercicioCuadradaProps) {
   const [mostrarAvatar, setMostrarAvatar] = useState(false);
   const [mostrarEscala, setMostrarEscala] = useState(false);
+  const [iniciado, setIniciado] = useState(false);
   const [cicloActual, setCicloActual] = useState(1);
   const [progreso, setProgreso] = useState(0);
   const [instruccion, setInstruccion] = useState('Respiración cuadrada');
@@ -51,6 +52,7 @@ export default function EjercicioCuadrada({ onCalmaResponse, onClose }: Ejercici
   };
 
   const iniciarEjercicio = () => {
+    setIniciado(true);
     setCicloActual(1);
     setProgreso(0);
     ejecutarCiclo(1);
@@ -274,7 +276,7 @@ export default function EjercicioCuadrada({ onCalmaResponse, onClose }: Ejercici
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '2rem' }}>
             <button
-              onClick={iniciarEjercicio}
+              onClick={iniciado ? volverAlChat : iniciarEjercicio}
               style={{
                 background: '#1D9E75',
                 color: 'white',
@@ -286,7 +288,7 @@ export default function EjercicioCuadrada({ onCalmaResponse, onClose }: Ejercici
                 cursor: 'pointer',
               }}
             >
-              Comenzar
+              {iniciado ? 'Terminar' : 'Comenzar'}
             </button>
           </div>
         </>
