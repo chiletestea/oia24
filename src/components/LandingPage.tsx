@@ -64,6 +64,13 @@ export default function LandingPage() {
       desc: 'Oscila entre dos puntos. Integra emociones difíciles',
       path: '/chat?exercise=pendulacion',
     },
+    {
+      id: 'respiracion-cuadrada',
+      title: 'Respiración Cuadrada',
+      icon: '🫁',
+      desc: 'Regula tu respiración en patrón cuadrado',
+      path: '/chat?exercise=cuadrada',
+    },
   ];
 
   return (

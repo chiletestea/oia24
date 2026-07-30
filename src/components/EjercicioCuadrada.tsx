@@ -64,7 +64,9 @@ export default function EjercicioCuadrada({ onCalmaResponse, onClose }: Ejercici
 
     setCicloActual(ciclo);
     resetLineas();
-    ejecutarFases(ciclo, 0);
+    setTimeout(() => {
+      ejecutarFases(ciclo, 0);
+    }, 50);
   };
 
   const ejecutarFases = (ciclo: number, faseIdx: number) => {
