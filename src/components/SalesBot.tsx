@@ -8,6 +8,7 @@ import EjercicioRespiracion from "@/components/EjercicioRespiracion";
 import EjercicioGrounding from "@/components/EjercicioGrounding";
 import EjercicioPendulacion from "@/components/EjercicioPendulacion";
 import EjercicioCuadrada from "@/components/EjercicioCuadrada";
+import FeedbackModal from "@/components/FeedbackModal";
 import { obtenerSesionAnonima } from "@/lib/sesion-anonima";
 import type { Area, ChatMessage, ChatStreamEvent, Step } from "@/types/chat";
 
@@ -302,6 +303,26 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [esperandoConfirmacionEjercicio, setEsperandoConfirmacionEjercicio] = useState<ExerciseKey | null>(
     null
   );
+  const [ejercicioCompletado, setEjercicioCompletado] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+
+  // Criterio de elegibilidad para pedir feedback al cerrar: conversación con
+  // sustancia (7+ mensajes del usuario) o que haya completado un ejercicio.
+  const messagesCount = messages.filter((m) => m.role === "user").length;
+  const elegibleParaFeedback = messagesCount >= 7 || ejercicioCompletado;
+
+  function handleSolicitarCierre() {
+    if (elegibleParaFeedback) {
+      setFeedbackModalOpen(true);
+    } else {
+      onClose();
+    }
+  }
+
+  function handleFeedbackFinalizado() {
+    setFeedbackModalOpen(false);
+    onClose();
+  }
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -552,7 +573,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleSolicitarCierre}
             aria-label="Cerrar chat"
             className="flex h-8 w-8 items-center justify-center rounded-full text-[#1a4d4d]/60 transition-colors hover:bg-[rgba(29,158,117,0.1)] hover:text-[#1a4d4d]"
           >
@@ -583,6 +604,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
               >
                 <EjercicioRespiracion
                   onCalmaResponse={(valor) => {
+                    setEjercicioCompletado(true);
                     const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
@@ -616,6 +638,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
               >
                 <EjercicioGrounding
                   onPresenciaResponse={(valor) => {
+                    setEjercicioCompletado(true);
                     const respuestaTexto = `He llegado a un ${valor} de presencia (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
@@ -647,6 +670,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
               >
                 <EjercicioPendulacion
                   onCalmaResponse={(valor) => {
+                    setEjercicioCompletado(true);
                     const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
@@ -678,6 +702,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
               >
                 <EjercicioCuadrada
                   onCalmaResponse={(valor) => {
+                    setEjercicioCompletado(true);
                     const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
@@ -842,6 +867,10 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
           </button>
         </form>
       </div>
+
+      {feedbackModalOpen && (
+        <FeedbackModal sessionId={obtenerSesionAnonima()} onFinish={handleFeedbackFinalizado} />
+      )}
     </div>
   );
 }
