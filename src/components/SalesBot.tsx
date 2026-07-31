@@ -29,6 +29,18 @@ function limpiarEtiquetas(texto: string): string {
     .trim();
 }
 
+// Si O propuso un ejercicio directamente vía sentinel en su respuesta (en vez
+// de vía detección de síntomas), igual queremos mostrar la tarjeta de
+// elección con COMENZAR + alternativas en lugar de saltar directo a pantalla
+// completa. Esto identifica cuál ejercicio corresponde al sentinel presente.
+function detectarEjercicioPorSentinel(texto: string): ExerciseKey | null {
+  if (texto.includes(EJERCICIO_RESPIRACION_SENTINEL)) return "respiracion";
+  if (texto.includes(EJERCICIO_GROUNDING_SENTINEL)) return "grounding";
+  if (texto.includes(EJERCICIO_CUADRADA_SENTINEL)) return "cuadrada";
+  if (texto.includes(EJERCICIO_PENDULACION_SENTINEL)) return "pendulacion";
+  return null;
+}
+
 const WORRIED_PATTERN = /ansiedad|estr[eé]s|preocupad/i;
 const CRISIS_KEYWORD_PATTERN = /urgente|ayuda|crisis/i;
 
@@ -343,17 +355,29 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
         setPendingText("");
         const text = finalText.trim();
         if (!crisisTriggered && text) {
-          setMessages((prev) => [...prev, makeMessage("assistant", text)]);
+          // Si O propuso un ejercicio directamente vía sentinel, no lo
+          // lanzamos a pantalla completa de inmediato: mostramos su mensaje
+          // junto con la misma tarjeta de elección (COMENZAR + alternativas)
+          // que usa la detección por síntomas, para que el usuario decida.
+          const ejercicioPropuesto = detectarEjercicioPorSentinel(text);
 
-          // O ya propuso un ejercicio directamente vía sentinel: no agregar
-          // una recomendación automática encima para no duplicar/contradecir.
-          const yaProponeEjercicio =
-            text.includes(EJERCICIO_RESPIRACION_SENTINEL) ||
-            text.includes(EJERCICIO_GROUNDING_SENTINEL) ||
-            text.includes(EJERCICIO_CUADRADA_SENTINEL) ||
-            text.includes(EJERCICIO_PENDULACION_SENTINEL);
+          if (ejercicioPropuesto) {
+            const contenidoLimpio = limpiarEtiquetas(text);
+            setMessages((prev) => [
+              ...prev,
+              {
+                ...makeMessage("assistant", contenidoLimpio || "Te propongo un ejercicio."),
+                recomendacion: {
+                  principal: ejercicioPropuesto,
+                  alternativas: (Object.keys(EXERCISE_INFO) as ExerciseKey[]).filter(
+                    (k) => k !== ejercicioPropuesto
+                  ),
+                },
+              },
+            ]);
+          } else {
+            setMessages((prev) => [...prev, makeMessage("assistant", text)]);
 
-          if (!yaProponeEjercicio) {
             const recomendacion = detectarEjercicioRecomendado(mensajeActual);
             if (recomendacion) {
               setMessages((prev) => [
@@ -626,10 +650,15 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                       disabled={isStreaming || crisis}
                       className="rounded-xl border border-white/80 bg-white/15 px-3 py-2 text-left text-xs font-medium text-white transition-colors hover:bg-white/25 disabled:opacity-50"
                     >
-                      {EXERCISE_INFO[msg.recomendacion.principal].emoji}{" "}
-                      {EXERCISE_INFO[msg.recomendacion.principal].nombre} - RECOMENDADA (
+                      ▶ Comenzar: {EXERCISE_INFO[msg.recomendacion.principal].emoji}{" "}
+                      {EXERCISE_INFO[msg.recomendacion.principal].nombre} (
                       {EXERCISE_INFO[msg.recomendacion.principal].minutos} min)
                     </button>
+                    {msg.recomendacion.alternativas.length > 0 && (
+                      <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-white/70">
+                        u otras opciones
+                      </span>
+                    )}
                     {msg.recomendacion.alternativas.map((ex) => (
                       <button
                         key={ex}
