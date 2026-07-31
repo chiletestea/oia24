@@ -132,8 +132,7 @@ export default function EjercicioPendulacion({ onCalmaResponse, onClose }: Ejerc
           </div>
 
           <button
-            onClick={iniciarPendulacion}
-            disabled={oscilando}
+            onClick={oscilando ? volverAlChat : iniciarPendulacion}
             style={{
               background: '#1D9E75',
               color: 'white',
@@ -142,12 +141,11 @@ export default function EjercicioPendulacion({ onCalmaResponse, onClose }: Ejerc
               borderRadius: '24px',
               fontSize: '15px',
               fontWeight: '500',
-              cursor: oscilando ? 'not-allowed' : 'pointer',
-              marginTop: '2rem',
-              opacity: oscilando ? 0.5 : 1
+              cursor: 'pointer',
+              marginTop: '2rem'
             }}
           >
-            {oscilando ? 'Oscilando...' : 'Comenzar'}
+            {oscilando ? 'Terminar' : 'Comenzar'}
           </button>
         </>
       )}

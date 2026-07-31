@@ -40,6 +40,7 @@ const FASES = {
 export default function EjercicioRespiracion({ onCalmaResponse, onClose }: EjercicioRespiracionProps) {
   const [mostrarAvatar, setMostrarAvatar] = useState(false);
   const [mostrarEscala, setMostrarEscala] = useState(false);
+  const [iniciado, setIniciado] = useState(false);
   const [circuloColor, setCirculoColor] = useState(FASES.inspirar.colorGradient);
   const [circuloStroke, setCirculoStroke] = useState(FASES.inspirar.colorStroke);
   const [circuloScale, setCirculoScale] = useState(1);
@@ -51,6 +52,7 @@ export default function EjercicioRespiracion({ onCalmaResponse, onClose }: Ejerc
   const [progreso, setProgreso] = useState(0);
 
   const iniciarEjercicio = () => {
+    setIniciado(true);
     setCicloActual(1);
     setProgreso(0);
     continuarCiclo();
@@ -254,7 +256,7 @@ export default function EjercicioRespiracion({ onCalmaResponse, onClose }: Ejerc
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '2rem' }}>
             <button
-              onClick={iniciarEjercicio}
+              onClick={iniciado ? volverAlChat : iniciarEjercicio}
               style={{
                 background: '#1D9E75',
                 color: 'white',
@@ -266,7 +268,7 @@ export default function EjercicioRespiracion({ onCalmaResponse, onClose }: Ejerc
                 cursor: 'pointer',
               }}
             >
-              Comenzar
+              {iniciado ? 'Terminar' : 'Comenzar'}
             </button>
           </div>
         </>
