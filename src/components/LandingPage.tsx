@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function LandingPage() {
@@ -200,6 +201,16 @@ export default function LandingPage() {
           </div>
         </div>
       )}
+
+      {/* FOOTER - discreto, no compite con el hero */}
+      <footer className="border-t border-[#e0e0e0] bg-white p-6 text-center">
+        <p className="text-[12px] leading-relaxed text-[#999] sm:text-[13px]">
+          © 2026 Openia - Encuentra tu calma |{' '}
+          <Link href="/politicas" className="text-[#999] underline hover:text-[#1D9E75]">
+            Políticas de Privacidad
+          </Link>
+        </p>
+      </footer>
     </div>
   );
 }
