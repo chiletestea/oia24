@@ -341,6 +341,8 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
 
   const initialized = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const wasStreamingRef = useRef(false);
 
   // La cara de O refleja el estado del chat: 'crisis' confirmado por el
   // servidor siempre gana; mientras O está generando una respuesta se ve
@@ -368,6 +370,16 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, pendingText, crisis]);
+
+  // Auto-focus silencioso: solo en desktop y solo justo cuando O termina de
+  // responder (transición isStreaming true -> false), sin mover la página.
+  useEffect(() => {
+    const veniaStreaming = wasStreamingRef.current;
+    wasStreamingRef.current = isStreaming;
+    if (veniaStreaming && !isStreaming && !crisis && window.innerWidth > 768) {
+      inputRef.current?.focus({ preventScroll: true });
+    }
+  }, [isStreaming, crisis]);
 
   useEffect(() => {
     if (exerciseParam && messages.length === 0) {
@@ -847,6 +859,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
           onSubmit={handleFreeformSubmit}
         >
           <input
+            ref={inputRef}
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
