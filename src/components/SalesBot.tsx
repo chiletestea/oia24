@@ -399,6 +399,34 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     }
   }, [exerciseParam]);
 
+  // Ref con la versión más reciente de handleSolicitarCierre para que el
+  // listener de popstate (montado una sola vez mientras el chat está abierto)
+  // siempre evalúe la elegibilidad de feedback actual, no la del momento en
+  // que se registró el listener.
+  const handleSolicitarCierreRef = useRef(handleSolicitarCierre);
+  handleSolicitarCierreRef.current = handleSolicitarCierre;
+
+  // Interceptor de navegación "atrás" en celular: al presionar back, en vez
+  // de salir de la app, se dispara el mismo flujo que la X de desktop
+  // (feedback si es elegible, si no cierre directo). Como el evento
+  // popstate no es cancelable, se "atrapa" reinsertando un estado en el
+  // historial antes de correr el flujo de cierre.
+  useEffect(() => {
+    if (!open) return;
+
+    window.history.pushState({ salesBotOpen: true }, "");
+
+    function handlePopState() {
+      window.history.pushState({ salesBotOpen: true }, "");
+      handleSolicitarCierreRef.current();
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [open]);
+
   async function askBot(history: ChatMessage[]) {
     setIsStreaming(true);
     setPendingText("");
