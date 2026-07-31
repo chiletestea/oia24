@@ -63,6 +63,19 @@ const EXERCISE_INFO: Record<ExerciseKey, ExerciseInfo> = {
   pendulacion: { nombre: "Pendulación", minutos: 4, emoji: "🌊", tag: EJERCICIO_PENDULACION_SENTINEL },
 };
 
+// 1) Máxima prioridad: el usuario pide un ejercicio específico por nombre.
+const NOMBRE_RULES: { pattern: RegExp; exercise: ExerciseKey }[] = [
+  { pattern: /cuadrada|cuadrado/i, exercise: "cuadrada" },
+  { pattern: /4-7-8|4\s*7\s*8|cuatro siete ocho/i, exercise: "respiracion" },
+  { pattern: /grounding|5-4-3-2-1|cinco cuatro tres dos uno/i, exercise: "grounding" },
+  { pattern: /pendulaci[oó]n|bilateral/i, exercise: "pendulacion" },
+];
+
+// 2) El usuario pide un ejercicio/técnica de forma genérica, sin decir cuál.
+const GENERICO_PATTERN =
+  /dame un ejercicio|quiero hacer un ejercicio|tengo un ejercicio|hazme un ejercicio|recomi?[ée]ndame un ejercicio|una t[eé]cnica de respiraci[oó]n|una t[eé]cnica/i;
+
+// 3) Prioridad actual: síntomas descritos por el usuario.
 const SYMPTOM_RULES: { pattern: RegExp; exercise: ExerciseKey; razon: string }[] = [
   {
     pattern: /ansiedad|p[aá]nico|asustad|miedo|pecho oprimido|ahogo/i,
@@ -87,6 +100,16 @@ const SYMPTOM_RULES: { pattern: RegExp; exercise: ExerciseKey; razon: string }[]
 ];
 
 function detectarEjercicioRecomendado(texto: string): { exercise: ExerciseKey; razon: string } | null {
+  for (const regla of NOMBRE_RULES) {
+    if (regla.pattern.test(texto)) {
+      return { exercise: regla.exercise, razon: `elegiste ${EXERCISE_INFO[regla.exercise].nombre}` };
+    }
+  }
+
+  if (GENERICO_PATTERN.test(texto)) {
+    return { exercise: "cuadrada", razon: "es una técnica simple y efectiva para empezar" };
+  }
+
   for (const regla of SYMPTOM_RULES) {
     if (regla.pattern.test(texto)) {
       return { exercise: regla.exercise, razon: regla.razon };
