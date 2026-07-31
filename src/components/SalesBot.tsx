@@ -99,6 +99,13 @@ const SYMPTOM_RULES: { pattern: RegExp; exercise: ExerciseKey; razon: string }[]
   },
 ];
 
+// O a veces ofrece una técnica en texto conversacional plano, sin sentinel
+// (p. ej. "Tengo una técnica que baja la ansiedad rápido... ¿la intentamos?")
+// y solo emite el [EJERCICIO_*] recién cuando el usuario confirma. Si no
+// detectamos esto, nuestra propia pregunta de confirmación (PASO 1) se
+// dispara encima de la que O ya hizo, duplicando la oferta.
+const OFRECE_TECNICA_PATTERN = /t[eé]cnica|ejercicio/i;
+
 function detectarEjercicioRecomendado(texto: string): { exercise: ExerciseKey; razon: string } | null {
   for (const regla of NOMBRE_RULES) {
     if (regla.pattern.test(texto)) {
@@ -420,7 +427,10 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
           } else {
             setMessages((prev) => [...prev, makeMessage("assistant", text)]);
 
-            const recomendacion = detectarEjercicioRecomendado(mensajeActual);
+            // Si O ya ofreció una técnica en su propia respuesta (aunque sea
+            // sin sentinel todavía), no la ofrecemos otra vez nosotros.
+            const oYaOfrecioTecnica = OFRECE_TECNICA_PATTERN.test(text);
+            const recomendacion = oYaOfrecioTecnica ? null : detectarEjercicioRecomendado(mensajeActual);
             if (recomendacion) {
               // Paso 1: preguntar de forma genérica antes de mostrar las
               // opciones — recién en el paso 2 (confirmación del usuario)
