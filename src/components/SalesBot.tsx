@@ -192,9 +192,25 @@ function makeMessage(role: ChatMessage["role"], content: string): DisplayMessage
   return { role, content, time: nowTime() };
 }
 
-function makeRecomendacionMessage(exercise: ExerciseKey, razon: string): DisplayMessage {
+// Flujo en dos pasos: primero se pregunta de forma genérica si O puede
+// proponer una técnica (sin revelar cuál todavía); solo si el usuario
+// confirma se muestra la tarjeta con el ejercicio y sus alternativas.
+const PREGUNTA_CONFIRMACION_EJERCICIO =
+  "Tengo una técnica que puede ayudarte en esto. No te tomará más de 5 minutos. ¿Te parece?";
+
+// \b en JS solo reconoce [A-Za-z0-9_] como caracter de palabra, así que "sí"
+// (con tilde) no genera un límite de palabra después de la í y el patrón no
+// matchea. Se normaliza (quitando tildes) antes de comparar.
+function normalizarTexto(texto: string): string {
+  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+const AFIRMATIVO_PATTERN = /\b(si|claro|dale|ok(?:ay)?|bueno|vamos)\b/i;
+const NEGATIVO_PATTERN = /\bno\b/i;
+
+function makeConfirmacionEjercicioMessage(exercise: ExerciseKey): DisplayMessage {
   const info = EXERCISE_INFO[exercise];
-  const contenido = `Recomendación: ${info.nombre} (~${info.minutos} min) - ${razon}.\n\n¿Quieres intentar?`;
+  const contenido = `Perfecto, te propongo: ${info.emoji} ${info.nombre} (~${info.minutos} min). O si prefieres, puedes probar otra técnica:`;
   return {
     ...makeMessage("assistant", contenido),
     recomendacion: {
@@ -276,6 +292,9 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [inputValue, setInputValue] = useState("");
   const [frasesHoy] = useState(() => obtenerFrasesAleatorias());
   const [ejercicioCerradoIndex, setEjercicioCerradoIndex] = useState<number | null>(null);
+  const [esperandoConfirmacionEjercicio, setEsperandoConfirmacionEjercicio] = useState<ExerciseKey | null>(
+    null
+  );
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -403,10 +422,11 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
 
             const recomendacion = detectarEjercicioRecomendado(mensajeActual);
             if (recomendacion) {
-              setMessages((prev) => [
-                ...prev,
-                makeRecomendacionMessage(recomendacion.exercise, recomendacion.razon),
-              ]);
+              // Paso 1: preguntar de forma genérica antes de mostrar las
+              // opciones — recién en el paso 2 (confirmación del usuario)
+              // se revela cuál técnica y sus alternativas.
+              setEsperandoConfirmacionEjercicio(recomendacion.exercise);
+              setMessages((prev) => [...prev, makeMessage("assistant", PREGUNTA_CONFIRMACION_EJERCICIO)]);
             }
           }
         }
@@ -457,6 +477,21 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     // Si el usuario escribe su propio mensaje en vez de usar un chip, sale
     // del flujo guiado — los chips de q1/q2 no deben seguir mostrándose.
     setStep("freeform");
+
+    // Paso 2 del flujo de confirmación: si le habíamos preguntado "¿te
+    // parece?" y el usuario confirma, mostramos ahora la tarjeta con el
+    // ejercicio y sus alternativas — sin pasar por O. Si rechaza o responde
+    // algo neutral, seguimos la conversación normal con O.
+    if (esperandoConfirmacionEjercicio) {
+      const ejercicioPendiente = esperandoConfirmacionEjercicio;
+      setEsperandoConfirmacionEjercicio(null);
+      const normalizado = normalizarTexto(trimmed);
+      if (!NEGATIVO_PATTERN.test(normalizado) && AFIRMATIVO_PATTERN.test(normalizado)) {
+        setMessages((prev) => [...prev, makeConfirmacionEjercicioMessage(ejercicioPendiente)]);
+        return;
+      }
+    }
+
     void askBot(history);
   }
 
