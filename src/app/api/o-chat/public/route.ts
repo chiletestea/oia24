@@ -83,8 +83,33 @@ export async function POST(req: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // El SDK de Anthropic puede emitir un último evento "text" ya iniciado
+      // el cierre (una carrera entre el listener y el await de
+      // finalMessage()) — eso hacía que controller.enqueue() lanzara
+      // "Invalid state: Controller is already closed" DESPUÉS de que ya
+      // habíamos mandado "done"/cerrado el stream. Como esa excepción no
+      // quedaba atrapada por el try/catch de más abajo (ocurre en un tick
+      // posterior), el cliente se quedaba esperando un evento que nunca
+      // llegaba — de ahí el "escribiendo..." pegado sin respuesta. Con este
+      // flag, cualquier envío tardío simplemente se ignora en vez de romper
+      // el stream ya cerrado.
+      let cerrado = false;
       const send = (event: object) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        if (cerrado) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        } catch {
+          cerrado = true;
+        }
+      };
+      const cerrar = () => {
+        if (cerrado) return;
+        cerrado = true;
+        try {
+          controller.close();
+        } catch {
+          // ya estaba cerrado por el lado del cliente/transporte — nada que hacer
+        }
       };
 
       try {
@@ -157,7 +182,7 @@ export async function POST(req: Request) {
         console.error("Error en /api/o-chat/public:", err);
         send({ type: "error", message: "Hubo un problema. Intenta de nuevo en un momento." });
       } finally {
-        controller.close();
+        cerrar();
       }
     },
   });

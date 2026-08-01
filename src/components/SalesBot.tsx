@@ -8,6 +8,8 @@ import EjercicioRespiracion from "@/components/EjercicioRespiracion";
 import EjercicioGrounding from "@/components/EjercicioGrounding";
 import EjercicioPendulacion from "@/components/EjercicioPendulacion";
 import EjercicioCuadrada from "@/components/EjercicioCuadrada";
+import EjercicioGottman, { type GottmanResultado, type GottmanScores } from "@/components/EjercicioGottman";
+import LuisContactCard from "@/components/LuisContactCard";
 import FeedbackModal from "@/components/FeedbackModal";
 import { obtenerSesionAnonima } from "@/lib/sesion-anonima";
 import type { Area, ChatMessage, ChatStreamEvent, Step } from "@/types/chat";
@@ -20,6 +22,12 @@ const EJERCICIO_RESPIRACION_SENTINEL = "[EJERCICIO_RESPIRACION_4_7_8]";
 const EJERCICIO_GROUNDING_SENTINEL = "[EJERCICIO_GROUNDING_5_4_3_2_1]";
 const EJERCICIO_PENDULACION_SENTINEL = "[EJERCICIO_PENDULACION]";
 const EJERCICIO_CUADRADA_SENTINEL = "[EJERCICIO_RESPIRACION_CUADRADA]";
+const EJERCICIO_GOTTMAN_SENTINEL = "[EJERCICIO_GOTTMAN]";
+// CONTACTO_LUIS: O ya tiene el "sí" (el usuario lo pidió directo) -> tarjeta
+// inmediata. PREGUNTA_LUIS: O quiere sugerirlo por su cuenta -> primero
+// pregunta y espera confirmación explícita antes de mostrar la tarjeta.
+const CONTACTO_LUIS_SENTINEL = "[CONTACTO_LUIS]";
+const PREGUNTA_LUIS_SENTINEL = "[PREGUNTA_LUIS]";
 
 function limpiarEtiquetas(texto: string): string {
   return texto
@@ -27,6 +35,9 @@ function limpiarEtiquetas(texto: string): string {
     .replace(EJERCICIO_GROUNDING_SENTINEL, "")
     .replace(EJERCICIO_PENDULACION_SENTINEL, "")
     .replace(EJERCICIO_CUADRADA_SENTINEL, "")
+    .replace(EJERCICIO_GOTTMAN_SENTINEL, "")
+    .replace(CONTACTO_LUIS_SENTINEL, "")
+    .replace(PREGUNTA_LUIS_SENTINEL, "")
     .trim();
 }
 
@@ -39,6 +50,7 @@ function detectarEjercicioPorSentinel(texto: string): ExerciseKey | null {
   if (texto.includes(EJERCICIO_GROUNDING_SENTINEL)) return "grounding";
   if (texto.includes(EJERCICIO_CUADRADA_SENTINEL)) return "cuadrada";
   if (texto.includes(EJERCICIO_PENDULACION_SENTINEL)) return "pendulacion";
+  if (texto.includes(EJERCICIO_GOTTMAN_SENTINEL)) return "gottman";
   return null;
 }
 
@@ -48,7 +60,7 @@ const CRISIS_KEYWORD_PATTERN = /urgente|ayuda|crisis/i;
 // Capa de recomendación: sugiere un ejercicio en base a palabras clave del
 // último mensaje del usuario. Es puramente aditiva — no reemplaza ni altera
 // las etiquetas [EJERCICIO_*] que O puede emitir directamente vía el prompt.
-type ExerciseKey = "respiracion" | "grounding" | "cuadrada" | "pendulacion";
+type ExerciseKey = "respiracion" | "grounding" | "cuadrada" | "pendulacion" | "gottman";
 
 interface ExerciseInfo {
   nombre: string;
@@ -62,7 +74,32 @@ const EXERCISE_INFO: Record<ExerciseKey, ExerciseInfo> = {
   grounding: { nombre: "Grounding 5-4-3-2-1", minutos: 3, emoji: "🧭", tag: EJERCICIO_GROUNDING_SENTINEL },
   cuadrada: { nombre: "Respiración Cuadrada", minutos: 2, emoji: "🟦", tag: EJERCICIO_CUADRADA_SENTINEL },
   pendulacion: { nombre: "Pendulación", minutos: 4, emoji: "🌊", tag: EJERCICIO_PENDULACION_SENTINEL },
+  gottman: { nombre: "Inventario Gottman", minutos: 10, emoji: "💞", tag: EJERCICIO_GOTTMAN_SENTINEL },
 };
+
+// Antiespam de ofertas: O no debe combinar dos tipos de oferta en el mismo
+// mensaje (ejercicio + inventario, etc.) ni ofrecer nada nuevo antes de que
+// pasen 7 mensajes desde la última oferta — sin importar si es la misma
+// categoría u otra. "program" no tiene disparador propio todavía (el prompt
+// público tiene prohibido vender programas), pero se deja tipado para que
+// el gating quede completo si en el futuro se agrega esa oferta.
+type TipoOferta = "exercise" | "inventory" | "program";
+
+const CATEGORIA_OFERTA: Record<ExerciseKey, TipoOferta> = {
+  respiracion: "exercise",
+  grounding: "exercise",
+  cuadrada: "exercise",
+  pendulacion: "exercise",
+  gottman: "inventory",
+};
+
+// Alternativas de una tarjeta de oferta: solo de la MISMA categoría que la
+// principal, nunca mezclando ejercicio + inventario en el mismo mensaje.
+function alternativasDe(exercise: ExerciseKey): ExerciseKey[] {
+  return (Object.keys(EXERCISE_INFO) as ExerciseKey[]).filter(
+    (k) => k !== exercise && CATEGORIA_OFERTA[k] === CATEGORIA_OFERTA[exercise]
+  );
+}
 
 // 1) Máxima prioridad: el usuario pide un ejercicio específico por nombre.
 const NOMBRE_RULES: { pattern: RegExp; exercise: ExerciseKey }[] = [
@@ -70,6 +107,7 @@ const NOMBRE_RULES: { pattern: RegExp; exercise: ExerciseKey }[] = [
   { pattern: /4-7-8|4\s*7\s*8|cuatro siete ocho/i, exercise: "respiracion" },
   { pattern: /grounding|5-4-3-2-1|cinco cuatro tres dos uno/i, exercise: "grounding" },
   { pattern: /pendulaci[oó]n|bilateral/i, exercise: "pendulacion" },
+  { pattern: /gottman|4 jinetes|cuatro jinetes|inventario de pareja/i, exercise: "gottman" },
 ];
 
 // 2) El usuario pide un ejercicio/técnica de forma genérica, sin decir cuál.
@@ -97,6 +135,11 @@ const SYMPTOM_RULES: { pattern: RegExp; exercise: ExerciseKey; razon: string }[]
     pattern: /llorar|abrumad|hundid|desesperad|crisis|angustia/i,
     exercise: "pendulacion",
     razon: "ayuda a equilibrar la emoción con una sensación de seguridad",
+  },
+  {
+    pattern: /pareja|discutimos|peleamos|nuestra relaci[oó]n/i,
+    exercise: "gottman",
+    razon: "te ayuda a identificar los patrones de conflicto en tu relación",
   },
 ];
 
@@ -186,6 +229,11 @@ interface DisplayMessage extends ChatMessage {
     principal: ExerciseKey;
     alternativas: ExerciseKey[];
   };
+  contactoLuis?: boolean;
+}
+
+function formatearScoresGottman(scores: GottmanScores): string {
+  return `Crítica ${scores.critica}, Desprecio ${scores.desprecio}, Defensividad ${scores.defensividad}, Obstruccionismo ${scores.obstruccionismo}`;
 }
 
 function nowTime(): string {
@@ -198,6 +246,34 @@ function nowTime(): string {
 
 function makeMessage(role: ChatMessage["role"], content: string): DisplayMessage {
   return { role, content, time: nowTime() };
+}
+
+// Un bloque que no termina en puntuación de cierre (. ! ? … " ' )) quedó
+// cortado a mitad de una idea — no es un final de pensamiento coherente.
+const CIERRE_DE_IDEA_PATTERN = /[.!?…"'”)]\s*$/;
+
+// O separa ideas completas con línea en blanco cuando su respuesta es larga
+// (ver o-sistema-publico.ts) — cada bloque se muestra como una burbuja propia
+// en vez de un párrafo gigante en una sola burbuja. Si igual llega un corte a
+// mitad de una idea (el modelo no siguió la instrucción al pie de la letra),
+// lo fusionamos con el bloque siguiente en vez de mostrar un fragmento suelto
+// que no tiene sentido por sí solo.
+function dividirEnMensajes(texto: string): string[] {
+  const crudas = texto
+    .split(/\n{2,}/)
+    .map((parte) => parte.trim())
+    .filter(Boolean);
+
+  const partes: string[] = [];
+  for (const parte of crudas) {
+    const anteriorIncompleta = partes.length > 0 && !CIERRE_DE_IDEA_PATTERN.test(partes[partes.length - 1]);
+    if (anteriorIncompleta) {
+      partes[partes.length - 1] = `${partes[partes.length - 1]} ${parte}`;
+    } else {
+      partes.push(parte);
+    }
+  }
+  return partes;
 }
 
 // Flujo en dos pasos: primero se pregunta de forma genérica si O puede
@@ -223,7 +299,7 @@ function makeConfirmacionEjercicioMessage(exercise: ExerciseKey): DisplayMessage
     ...makeMessage("assistant", contenido),
     recomendacion: {
       principal: exercise,
-      alternativas: (Object.keys(EXERCISE_INFO) as ExerciseKey[]).filter((k) => k !== exercise),
+      alternativas: alternativasDe(exercise),
     },
   };
 }
@@ -258,30 +334,50 @@ async function streamChat(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  // Si el stream se corta (red, o el backend se cae a mitad de camino) sin
+  // haber mandado "done"/"crisis"/"error", antes esto dejaba la UI pegada
+  // para siempre en "escribiendo" — sin ningún error visible. Este flag
+  // asegura que SIEMPRE resolvamos a algo: la respuesta real, o un error.
+  let eventoFinalRecibido = false;
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    let separatorIndex: number;
-    while ((separatorIndex = buffer.indexOf("\n\n")) !== -1) {
-      const rawEvent = buffer.slice(0, separatorIndex);
-      buffer = buffer.slice(separatorIndex + 2);
+      let separatorIndex: number;
+      while ((separatorIndex = buffer.indexOf("\n\n")) !== -1) {
+        const rawEvent = buffer.slice(0, separatorIndex);
+        buffer = buffer.slice(separatorIndex + 2);
 
-      const line = rawEvent.split("\n").find((l) => l.startsWith("data: "));
-      if (!line) continue;
+        const line = rawEvent.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
 
-      try {
-        const event = JSON.parse(line.slice("data: ".length)) as ChatStreamEvent;
-        if (event.type === "text") handlers.onText(event.text);
-        else if (event.type === "crisis") handlers.onCrisis();
-        else if (event.type === "done") handlers.onDone();
-        else if (event.type === "error") handlers.onError(event.message);
-      } catch {
-        // chunk parcial o malformado: se ignora
+        try {
+          const event = JSON.parse(line.slice("data: ".length)) as ChatStreamEvent;
+          if (event.type === "text") handlers.onText(event.text);
+          else if (event.type === "crisis") {
+            eventoFinalRecibido = true;
+            handlers.onCrisis();
+          } else if (event.type === "done") {
+            eventoFinalRecibido = true;
+            handlers.onDone();
+          } else if (event.type === "error") {
+            eventoFinalRecibido = true;
+            handlers.onError(event.message);
+          }
+        } catch {
+          // chunk parcial o malformado: se ignora
+        }
       }
     }
+  } catch {
+    // el stream se cortó a mitad de camino (red, o el servidor se cayó)
+  }
+
+  if (!eventoFinalRecibido) {
+    handlers.onError("No recibimos la respuesta completa. Intenta de nuevo.");
   }
 }
 
@@ -303,8 +399,34 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [esperandoConfirmacionEjercicio, setEsperandoConfirmacionEjercicio] = useState<ExerciseKey | null>(
     null
   );
+  // Igual que esperandoConfirmacionEjercicio, pero para la oferta de Luis:
+  // O pregunta primero ("¿quieres que te recomiende...?"), y solo si el
+  // usuario confirma explícitamente se muestra la tarjeta de contacto.
+  const [esperandoConfirmacionLuis, setEsperandoConfirmacionLuis] = useState(false);
   const [ejercicioCompletado, setEjercicioCompletado] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+
+  // Antiespam de ofertas (ejercicio / inventario Tu Brújula / programa):
+  // lastOfferMessageIndexRef guarda cuántos mensajes había en la conversación
+  // cuando se hizo la última oferta. Hasta que no pasen 7 mensajes nuevos, no
+  // se vuelve a ofrecer nada — sin importar el tipo ni la categoría.
+  // Usamos useRef (no useState): el valor se lee y escribe dentro del mismo
+  // callback (p. ej. registrarOferta seguido de un askBot vía setTimeout), y
+  // con useState ese askBot quedaría con el valor viejo por closure stale —
+  // el re-render con el estado nuevo llega demasiado tarde. El ref siempre
+  // expone el valor más reciente sin depender de en qué render se leyó.
+  const lastOfferTypeRef = useRef<TipoOferta | null>(null);
+  const lastOfferMessageIndexRef = useRef<number | null>(null);
+
+  function puedeOfrecerAhora(totalMensajesActual: number): boolean {
+    if (lastOfferTypeRef.current === null || lastOfferMessageIndexRef.current === null) return true;
+    return totalMensajesActual - lastOfferMessageIndexRef.current >= 7;
+  }
+
+  function registrarOferta(exercise: ExerciseKey, totalMensajesActual: number) {
+    lastOfferTypeRef.current = CATEGORIA_OFERTA[exercise];
+    lastOfferMessageIndexRef.current = totalMensajesActual;
+  }
 
   // Criterio de elegibilidad para pedir feedback al cerrar: conversación con
   // sustancia (7+ mensajes del usuario) o que haya completado un ejercicio.
@@ -387,7 +509,8 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
         'respiracion': '[EJERCICIO_RESPIRACION_4_7_8]',
         'grounding': '[EJERCICIO_GROUNDING_5_4_3_2_1]',
         'pendulacion': '[EJERCICIO_PENDULACION]',
-        'cuadrada': '[EJERCICIO_RESPIRACION_CUADRADA]'
+        'cuadrada': '[EJERCICIO_RESPIRACION_CUADRADA]',
+        'gottman': '[EJERCICIO_GOTTMAN]'
       };
 
       if (ejercicioMap[exerciseParam]) {
@@ -470,34 +593,69 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
           // junto con la misma tarjeta de elección (COMENZAR + alternativas)
           // que usa la detección por síntomas, para que el usuario decida.
           const ejercicioPropuesto = detectarEjercicioPorSentinel(text);
+          const totalMensajesActual = history.length + 1;
 
           if (ejercicioPropuesto) {
             const contenidoLimpio = limpiarEtiquetas(text);
-            setMessages((prev) => [
-              ...prev,
-              {
-                ...makeMessage("assistant", contenidoLimpio || "Te propongo un ejercicio."),
-                recomendacion: {
-                  principal: ejercicioPropuesto,
-                  alternativas: (Object.keys(EXERCISE_INFO) as ExerciseKey[]).filter(
-                    (k) => k !== ejercicioPropuesto
-                  ),
-                },
-              },
-            ]);
-          } else {
-            setMessages((prev) => [...prev, makeMessage("assistant", text)]);
+            const partes = dividirEnMensajes(contenidoLimpio || "Te propongo un ejercicio.");
+            const previas = partes.slice(0, -1).map((p) => makeMessage("assistant", p));
+            const ultima = partes[partes.length - 1];
 
-            // Si O ya ofreció una técnica en su propia respuesta (aunque sea
-            // sin sentinel todavía), no la ofrecemos otra vez nosotros.
-            const oYaOfrecioTecnica = OFRECE_TECNICA_PATTERN.test(text);
-            const recomendacion = oYaOfrecioTecnica ? null : detectarEjercicioRecomendado(mensajeActual);
-            if (recomendacion) {
-              // Paso 1: preguntar de forma genérica antes de mostrar las
-              // opciones — recién en el paso 2 (confirmación del usuario)
-              // se revela cuál técnica y sus alternativas.
-              setEsperandoConfirmacionEjercicio(recomendacion.exercise);
-              setMessages((prev) => [...prev, makeMessage("assistant", PREGUNTA_CONFIRMACION_EJERCICIO)]);
+            // Antiespam: si todavía no pasaron 7 mensajes desde la última
+            // oferta (de cualquier tipo), no mostramos la tarjeta — solo el
+            // texto de O, limpio del sentinel.
+            if (!puedeOfrecerAhora(totalMensajesActual)) {
+              setMessages((prev) => [...prev, ...previas, makeMessage("assistant", ultima)]);
+            } else {
+              registrarOferta(ejercicioPropuesto, totalMensajesActual);
+              setMessages((prev) => [
+                ...prev,
+                ...previas,
+                {
+                  ...makeMessage("assistant", ultima),
+                  recomendacion: {
+                    principal: ejercicioPropuesto,
+                    alternativas: alternativasDe(ejercicioPropuesto),
+                  },
+                },
+              ]);
+            }
+          } else {
+            // CONTACTO_LUIS: el usuario ya pidió el contacto directo (O lo
+            // detectó en su propio mensaje) -> tarjeta inmediata.
+            // PREGUNTA_LUIS: O quiere sugerirlo por iniciativa propia -> solo
+            // deja la pregunta, la tarjeta espera confirmación explícita.
+            const ofreceLuisDirecto = text.includes(CONTACTO_LUIS_SENTINEL);
+            const preguntaLuis = !ofreceLuisDirecto && text.includes(PREGUNTA_LUIS_SENTINEL);
+            const contenidoLimpio = limpiarEtiquetas(text);
+            const partes = dividirEnMensajes(contenidoLimpio);
+            setMessages((prev) => [...prev, ...partes.map((p) => makeMessage("assistant", p))]);
+
+            if (ofreceLuisDirecto) {
+              // Tarjeta destacada aparte, después del texto conversacional de
+              // O — nunca se combina con la oferta de un ejercicio (regla del
+              // prompt), así que acá no corremos detectarEjercicioRecomendado.
+              setMessages((prev) => [...prev, { ...makeMessage("assistant", ""), contactoLuis: true }]);
+            } else if (preguntaLuis) {
+              // Queda esperando el "sí"/"no" del usuario en handleFreeformSubmit
+              // — no se ofrece nada más mientras tanto.
+              setEsperandoConfirmacionLuis(true);
+            } else {
+              // Si O ya ofreció una técnica en su propia respuesta (aunque sea
+              // sin sentinel todavía), no la ofrecemos otra vez nosotros.
+              const oYaOfrecioTecnica = OFRECE_TECNICA_PATTERN.test(text);
+              const recomendacion =
+                oYaOfrecioTecnica || !puedeOfrecerAhora(totalMensajesActual)
+                  ? null
+                  : detectarEjercicioRecomendado(mensajeActual);
+              if (recomendacion) {
+                registrarOferta(recomendacion.exercise, totalMensajesActual);
+                // Paso 1: preguntar de forma genérica antes de mostrar las
+                // opciones — recién en el paso 2 (confirmación del usuario)
+                // se revela cuál técnica y sus alternativas.
+                setEsperandoConfirmacionEjercicio(recomendacion.exercise);
+                setMessages((prev) => [...prev, makeMessage("assistant", PREGUNTA_CONFIRMACION_EJERCICIO)]);
+              }
             }
           }
         }
@@ -559,6 +717,19 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
       const normalizado = normalizarTexto(trimmed);
       if (!NEGATIVO_PATTERN.test(normalizado) && AFIRMATIVO_PATTERN.test(normalizado)) {
         setMessages((prev) => [...prev, makeConfirmacionEjercicioMessage(ejercicioPendiente)]);
+        return;
+      }
+    }
+
+    // Mismo patrón para la oferta de Luis: solo si el usuario confirma
+    // explícitamente ("sí") se muestra la tarjeta. Si dice "no" o responde
+    // cualquier otra cosa (ignora la pregunta, cambia de tema), seguimos la
+    // conversación normal con O y la tarjeta no aparece.
+    if (esperandoConfirmacionLuis) {
+      setEsperandoConfirmacionLuis(false);
+      const normalizado = normalizarTexto(trimmed);
+      if (!NEGATIVO_PATTERN.test(normalizado) && AFIRMATIVO_PATTERN.test(normalizado)) {
+        setMessages((prev) => [...prev, { ...makeMessage("assistant", ""), contactoLuis: true }]);
         return;
       }
     }
@@ -648,6 +819,9 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
+                    // Antiespam: acaba de completar este ejercicio — rearma el
+                    // cooldown para que O no ofrezca nada nuevo de inmediato.
+                    registrarOferta("respiracion", nuevosMensajes.length);
 
                     // O responde automáticamente con refuerzo personalizado
                     setTimeout(() => {
@@ -682,6 +856,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     const respuestaTexto = `He llegado a un ${valor} de presencia (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
+                    registrarOferta("grounding", nuevosMensajes.length);
                     setTimeout(() => {
                       void askBot(nuevosMensajes);
                     }, 500);
@@ -714,6 +889,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
+                    registrarOferta("pendulacion", nuevosMensajes.length);
                     setTimeout(() => {
                       void askBot(nuevosMensajes);
                     }, 500);
@@ -746,6 +922,47 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
+                    registrarOferta("cuadrada", nuevosMensajes.length);
+                    setTimeout(() => {
+                      void askBot(nuevosMensajes);
+                    }, 500);
+                  }}
+                  onClose={handleEjercicioClose}
+                />
+              </div>
+            )}
+
+          {step === "freeform" &&
+            messages.length > 0 &&
+            messages[messages.length - 1].role === "assistant" &&
+            messages[messages.length - 1].content.includes(EJERCICIO_GOTTMAN_SENTINEL) &&
+            ejercicioCerradoIndex !== messages.length - 1 && (
+              <div
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  background: "white",
+                  zIndex: 9999,
+                  overflow: "auto",
+                }}
+              >
+                <EjercicioGottman
+                  onResultado={(resultado: GottmanResultado) => {
+                    setEjercicioCompletado(true);
+                    const respuestaTexto =
+                      resultado.comparado && resultado.scoresB
+                        ? `Completamos el Inventario Gottman en pareja (escala 4-20 por variable). Mis resultados: ${formatearScoresGottman(
+                            resultado.scoresA
+                          )}. Resultados de mi pareja: ${formatearScoresGottman(resultado.scoresB)}.`
+                        : `Completé el Inventario Gottman (escala 4-20 por variable). Mis resultados: ${formatearScoresGottman(
+                            resultado.scoresA
+                          )}.`;
+                    const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
+                    setMessages(nuevosMensajes);
+                    registrarOferta("gottman", nuevosMensajes.length);
                     setTimeout(() => {
                       void askBot(nuevosMensajes);
                     }, 500);
@@ -767,6 +984,9 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                   <OFace emotion="normal" size={24} />
                 </div>
               )}
+              {msg.contactoLuis ? (
+                <LuisContactCard />
+              ) : (
               <div
                 className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
                   msg.role === "user"
@@ -813,6 +1033,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                   {msg.time}
                 </span>
               </div>
+              )}
             </div>
           ))}
 
