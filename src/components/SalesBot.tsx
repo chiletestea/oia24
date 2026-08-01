@@ -12,12 +12,11 @@ import EjercicioGottman, { type GottmanResultado, type GottmanScores } from "@/c
 import LuisContactCard from "@/components/LuisContactCard";
 import FeedbackModal from "@/components/FeedbackModal";
 import { obtenerSesionAnonima } from "@/lib/sesion-anonima";
-import type { Area, ChatMessage, ChatStreamEvent, Step } from "@/types/chat";
+import type { ChatMessage, ChatStreamEvent, Step } from "@/types/chat";
 
 const SALUDO_INICIAL =
   "Hola, soy O. Estoy aquí para escucharte, sin apuro y sin juicios. ¿Qué tienes en mente?";
 
-const CRISIS_SENTINEL = "[CRISIS]";
 const EJERCICIO_RESPIRACION_SENTINEL = "[EJERCICIO_RESPIRACION_4_7_8]";
 const EJERCICIO_GROUNDING_SENTINEL = "[EJERCICIO_GROUNDING_5_4_3_2_1]";
 const EJERCICIO_PENDULACION_SENTINEL = "[EJERCICIO_PENDULACION]";
@@ -83,7 +82,7 @@ const EXERCISE_INFO: Record<ExerciseKey, ExerciseInfo> = {
 // categoría u otra. "program" no tiene disparador propio todavía (el prompt
 // público tiene prohibido vender programas), pero se deja tipado para que
 // el gating quede completo si en el futuro se agrega esa oferta.
-type TipoOferta = "exercise" | "inventory" | "program";
+type TipoOferta = "exercise" | "inventory" | "program" | "luis";
 
 const CATEGORIA_OFERTA: Record<ExerciseKey, TipoOferta> = {
   respiracion: "exercise",
@@ -114,34 +113,20 @@ const NOMBRE_RULES: { pattern: RegExp; exercise: ExerciseKey }[] = [
 const GENERICO_PATTERN =
   /dame un ejercicio|quiero hacer un ejercicio|tengo un ejercicio|hazme un ejercicio|recomi?[ée]ndame un ejercicio|una t[eé]cnica de respiraci[oó]n|una t[eé]cnica/i;
 
-// 3) Prioridad actual: síntomas descritos por el usuario.
-const SYMPTOM_RULES: { pattern: RegExp; exercise: ExerciseKey; razon: string }[] = [
-  {
-    pattern: /ansiedad|p[aá]nico|asustad|miedo|pecho oprimido|ahogo/i,
-    exercise: "respiracion",
-    razon: "ayuda a calmar la alarma de tu cuerpo",
-  },
-  {
-    pattern: /disociad|flotando|irreal|desconectad|nube|ausente/i,
-    exercise: "grounding",
-    razon: "ayuda a reconectar con el presente",
-  },
-  {
-    pattern: /estr[eé]s|agitad|nervios|acelerad|inquiet|temblar/i,
-    exercise: "cuadrada",
-    razon: "es perfecta para regularizar tu sistema nervioso",
-  },
-  {
-    pattern: /llorar|abrumad|hundid|desesperad|crisis|angustia/i,
-    exercise: "pendulacion",
-    razon: "ayuda a equilibrar la emoción con una sensación de seguridad",
-  },
-  {
-    pattern: /pareja|discutimos|peleamos|nuestra relaci[oó]n/i,
-    exercise: "gottman",
-    razon: "te ayuda a identificar los patrones de conflicto en tu relación",
-  },
-];
+// 3) Única inferencia PROACTIVA que queda del lado del cliente: pareja ->
+// Gottman. Antes había un array de "síntomas corporales" (ansiedad,
+// disociación, estrés, llorar) que adivinaba EN PARALELO a Claude cuál
+// ejercicio ofrecer mirando solo el último mensaje — sin el contexto
+// completo que Claude sí tiene. Cuando un mensaje mencionaba pareja Y
+// también una palabra de esa lista (p. ej. "nervios"), el orden del array
+// decidía por síntoma corporal, desconectado de lo que Claude conversaba.
+// Se eliminó esa capa: ofrecer respiración/grounding/cuadrada/pendulación
+// por iniciativa propia es ahora exclusivamente decisión de Claude (vía
+// sentinel [EJERCICIO_*], ver detectarEjercicioPorSentinel) — el cliente ya
+// no compite adivinando. Pareja/Gottman se mantiene como regla propia,
+// aislada, porque el usuario pidió que ese gate sea explícito y confiable.
+const PAREJA_PATTERN =
+  /pareja|parejas|celos|relaci[oó]n amorosa|discutimos|peleamos|nuestra relaci[oó]n|mi (novio|novia|esposo|esposa)/i;
 
 // O a veces ofrece una técnica en texto conversacional plano, sin sentinel
 // (p. ej. "Tengo una técnica que baja la ansiedad rápido... ¿la intentamos?")
@@ -150,22 +135,36 @@ const SYMPTOM_RULES: { pattern: RegExp; exercise: ExerciseKey; razon: string }[]
 // dispara encima de la que O ya hizo, duplicando la oferta.
 const OFRECE_TECNICA_PATTERN = /t[eé]cnica|ejercicio/i;
 
-function detectarEjercicioRecomendado(texto: string): { exercise: ExerciseKey; razon: string } | null {
+// esExplicito distingue si el usuario PIDIÓ el ejercicio (por nombre o de
+// forma genérica) de si es la única inferencia implícita que queda
+// (pareja -> Gottman). Solo esta última respeta el límite de una oferta
+// proactiva por sesión (ver ofertaProactivaHechaRef más abajo) — un pedido
+// explícito del usuario siempre se atiende, sin importar el estado previo.
+function detectarEjercicioRecomendado(
+  texto: string
+): { exercise: ExerciseKey; razon: string; esExplicito: boolean } | null {
   for (const regla of NOMBRE_RULES) {
     if (regla.pattern.test(texto)) {
-      return { exercise: regla.exercise, razon: `elegiste ${EXERCISE_INFO[regla.exercise].nombre}` };
+      return {
+        exercise: regla.exercise,
+        razon: `elegiste ${EXERCISE_INFO[regla.exercise].nombre}`,
+        esExplicito: true,
+      };
     }
   }
 
   if (GENERICO_PATTERN.test(texto)) {
-    return { exercise: "cuadrada", razon: "es una técnica simple y efectiva para empezar" };
+    return { exercise: "cuadrada", razon: "es una técnica simple y efectiva para empezar", esExplicito: true };
   }
 
-  for (const regla of SYMPTOM_RULES) {
-    if (regla.pattern.test(texto)) {
-      return { exercise: regla.exercise, razon: regla.razon };
-    }
+  if (PAREJA_PATTERN.test(texto)) {
+    return {
+      exercise: "gottman",
+      razon: "te ayuda a identificar los patrones de conflicto en tu relación",
+      esExplicito: false,
+    };
   }
+
   return null;
 }
 
@@ -179,19 +178,6 @@ function detectEmotionFromText(text: string): Emotion {
   if (WORRIED_PATTERN.test(text)) return "worried";
   return "normal";
 }
-
-// const Q1_CHIPS: { text: string; area: Area }[] = [  // TODO: reactivar para programa Q1
-//   { text: "La ansiedad no me deja vivir", area: "ansiedad" },
-//   { text: "El trabajo me tiene agotado", area: "trabajo" },
-//   { text: "Mi mente no para nunca", area: "mente" },
-//   { text: "Necesito herramientas rápidas", area: "urgente" },
-// ];
-
-const Q2_CHIPS: Record<"ansiedad" | "trabajo" | "mente", string[]> = {
-  ansiedad: ["Todo el día", "Por las noches", "En situaciones", "No sé"],
-  trabajo: ["Agotamiento crónico", "Crisis puntuales", "Ambos", "No estoy seguro"],
-  mente: ["Sí, rumiación constante", "Más bien ansiedad", "Bloqueos mentales", "No sé"],
-};
 
 const FRASES_INICIALES = [
   "La ansiedad no me deja vivir",
@@ -252,6 +238,16 @@ function makeMessage(role: ChatMessage["role"], content: string): DisplayMessage
 // cortado a mitad de una idea — no es un final de pensamiento coherente.
 const CIERRE_DE_IDEA_PATTERN = /[.!?…"'”)]\s*$/;
 
+// Red de seguridad contra sobre-división: el prompt le pide al modelo que
+// SOLO divida en varias burbujas si la respuesta completa no cabe en 5-7
+// líneas — pero si no sigue esa instrucción al pie de la letra y igual
+// separa una respuesta corta con líneas en blanco, antes el cliente confiaba
+// ciegamente en esa división. UMBRAL_UNIFICAR_CHARS aproxima ese mismo
+// límite (~5-7 líneas cortas) para deshacer una división innecesaria.
+const UMBRAL_UNIFICAR_CHARS = 220;
+// Tope dado por el propio prompt ("no te excedas de 3 burbujas por turno").
+const MAX_BURBUJAS = 3;
+
 // O separa ideas completas con línea en blanco cuando su respuesta es larga
 // (ver o-sistema-publico.ts) — cada bloque se muestra como una burbuja propia
 // en vez de un párrafo gigante en una sola burbuja. Si igual llega un corte a
@@ -273,14 +269,37 @@ function dividirEnMensajes(texto: string): string[] {
       partes.push(parte);
     }
   }
+
+  // Si el total de la respuesta es corto, no debería haberse dividido en
+  // primer lugar — se unifica en una sola burbuja, sin importar cuántos
+  // saltos de línea haya usado el modelo.
+  const totalChars = partes.reduce((acc, parte) => acc + parte.length, 0);
+  if (partes.length > 1 && totalChars <= UMBRAL_UNIFICAR_CHARS) {
+    return [partes.join(" ")];
+  }
+
+  // Si aun así quedan demasiadas burbujas, se fusionan los bloques sobrantes
+  // en el último en vez de saturar al usuario de mensajes separados.
+  if (partes.length > MAX_BURBUJAS) {
+    const inicio = partes.slice(0, MAX_BURBUJAS - 1);
+    const resto = partes.slice(MAX_BURBUJAS - 1).join(" ");
+    return [...inicio, resto];
+  }
+
   return partes;
 }
 
 // Flujo en dos pasos: primero se pregunta de forma genérica si O puede
-// proponer una técnica (sin revelar cuál todavía); solo si el usuario
-// confirma se muestra la tarjeta con el ejercicio y sus alternativas.
-const PREGUNTA_CONFIRMACION_EJERCICIO =
-  "Tengo una técnica que puede ayudarte en esto. No te tomará más de 5 minutos. ¿Te parece?";
+// proponer un ejercicio o instrumento (sin revelar cuál todavía); solo si el
+// usuario confirma se muestra la tarjeta con la opción y sus alternativas.
+// Gottman es un INSTRUMENTO de evaluación, no una técnica de regulación —
+// usa su propio texto para no llamarlo "técnica" incorrectamente.
+function preguntaConfirmacion(exercise: ExerciseKey): string {
+  if (exercise === "gottman") {
+    return "Tengo un instrumento que puede evaluar cómo están como pareja, no te tomará más de 5 minutos. ¿Te parece lo aplicamos?";
+  }
+  return "Tengo una técnica que puede ayudarte en esto. No te tomará más de 5 minutos. ¿Te parece?";
+}
 
 // \b en JS solo reconoce [A-Za-z0-9_] como caracter de palabra, así que "sí"
 // (con tilde) no genera un límite de palabra después de la í y el patrón no
@@ -294,7 +313,13 @@ const NEGATIVO_PATTERN = /\bno\b/i;
 
 function makeConfirmacionEjercicioMessage(exercise: ExerciseKey): DisplayMessage {
   const info = EXERCISE_INFO[exercise];
-  const contenido = `Perfecto, te propongo: ${info.emoji} ${info.nombre} (~${info.minutos} min). O si prefieres, puedes probar otra técnica:`;
+  // Gottman no tiene alternativas (es la única entrada de su categoría, ver
+  // alternativasDe) y es un instrumento, no una técnica — evita ofrecer
+  // "otra técnica" cuando no hay ninguna otra opción que mostrar.
+  const contenido =
+    exercise === "gottman"
+      ? `Perfecto, apliquemos: ${info.emoji} ${info.nombre} (~${info.minutos} min).`
+      : `Perfecto, te propongo: ${info.emoji} ${info.nombre} (~${info.minutos} min). O si prefieres, puedes probar otra técnica:`;
   return {
     ...makeMessage("assistant", contenido),
     recomendacion: {
@@ -320,13 +345,41 @@ async function streamChat(
   sesionId: string,
   handlers: StreamHandlers
 ) {
-  const res = await fetch("/api/o-chat/public", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sesion_id: sesionId, mensaje, historial }),
-  });
+  // Vigía de inactividad: si el servidor se cuelga a mitad de stream sin
+  // emitir ni un byte (p. ej. Anthropic no responde y el propio timeout del
+  // servidor no llega a dispararse por algún motivo), antes esto dejaba el
+  // fetch abierto para siempre y la UI pegada en "escribiendo..." sin límite
+  // ni error visible. Se rearma en cada chunk recibido — una respuesta larga
+  // pero activa nunca se corta, solo si deja de llegar CUALQUIER dato.
+  const IDLE_TIMEOUT_MS = 65_000; // algo mayor al timeout del servidor (60s) para no competir con él
+  const abortController = new AbortController();
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  function rearmarIdleTimer() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => abortController.abort(), IDLE_TIMEOUT_MS);
+  }
+  rearmarIdleTimer();
+
+  let res: Response;
+  try {
+    res = await fetch("/api/o-chat/public", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sesion_id: sesionId, mensaje, historial }),
+      signal: abortController.signal,
+    });
+  } catch {
+    // Antes, si el fetch en sí fallaba (red caída, o nuestro propio abort
+    // por inactividad), esto no estaba atrapado en ningún try/catch: la
+    // promesa de streamChat() rechazaba sin manejar y la UI quedaba pegada
+    // en "escribiendo" para siempre, sin ni siquiera un mensaje de error.
+    clearTimeout(idleTimer);
+    handlers.onError("No se pudo conectar con el asistente. Intenta de nuevo.");
+    return;
+  }
 
   if (!res.ok || !res.body) {
+    clearTimeout(idleTimer);
     handlers.onError("No se pudo conectar con el asistente. Intenta de nuevo.");
     return;
   }
@@ -344,6 +397,7 @@ async function streamChat(
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
+      rearmarIdleTimer();
       buffer += decoder.decode(value, { stream: true });
 
       let separatorIndex: number;
@@ -373,7 +427,9 @@ async function streamChat(
       }
     }
   } catch {
-    // el stream se cortó a mitad de camino (red, o el servidor se cayó)
+    // el stream se cortó a mitad de camino (red, timeout de inactividad, o el servidor se cayó)
+  } finally {
+    clearTimeout(idleTimer);
   }
 
   if (!eventoFinalRecibido) {
@@ -389,7 +445,6 @@ interface SalesBotProps {
 export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [step, setStep] = useState<Step>("q1");
-  const [area] = useState<Area | undefined>(undefined); // setArea: TODO reactivar cuando se implemente area (ver handleQ1Chip comentado)
   const [crisis, setCrisis] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingText, setPendingText] = useState("");
@@ -406,26 +461,28 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   const [ejercicioCompletado, setEjercicioCompletado] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
-  // Antiespam de ofertas (ejercicio / inventario Tu Brújula / programa):
-  // lastOfferMessageIndexRef guarda cuántos mensajes había en la conversación
-  // cuando se hizo la última oferta. Hasta que no pasen 7 mensajes nuevos, no
-  // se vuelve a ofrecer nada — sin importar el tipo ni la categoría.
+  // Antiespam de ofertas (ejercicio / inventario Tu Brújula / Luis): UNA sola
+  // oferta proactiva por sesión, sin importar la categoría. A diferencia del
+  // cooldown de 7 mensajes que había antes (que "revivía" la oferta pasado un
+  // tiempo, incluso si el usuario la había rechazado), esto es un pestillo
+  // permanente — una vez que O ofrece algo por su cuenta, no vuelve a ofrecer
+  // nada más el resto de la sesión. Un pedido EXPLÍCITO del usuario (por
+  // nombre o genérico, ver esExplicito) siempre bypasea este pestillo.
   // Usamos useRef (no useState): el valor se lee y escribe dentro del mismo
   // callback (p. ej. registrarOferta seguido de un askBot vía setTimeout), y
   // con useState ese askBot quedaría con el valor viejo por closure stale —
   // el re-render con el estado nuevo llega demasiado tarde. El ref siempre
   // expone el valor más reciente sin depender de en qué render se leyó.
-  const lastOfferTypeRef = useRef<TipoOferta | null>(null);
-  const lastOfferMessageIndexRef = useRef<number | null>(null);
+  const ofertaProactivaHechaRef = useRef(false);
 
-  function puedeOfrecerAhora(totalMensajesActual: number): boolean {
-    if (lastOfferTypeRef.current === null || lastOfferMessageIndexRef.current === null) return true;
-    return totalMensajesActual - lastOfferMessageIndexRef.current >= 7;
+  function puedeOfrecerAhora(): boolean {
+    return !ofertaProactivaHechaRef.current;
   }
 
-  function registrarOferta(exercise: ExerciseKey, totalMensajesActual: number) {
-    lastOfferTypeRef.current = CATEGORIA_OFERTA[exercise];
-    lastOfferMessageIndexRef.current = totalMensajesActual;
+  // El pestillo es global (no importa la categoría — ejercicio, inventario o
+  // Luis cuentan igual), así que no necesita saber qué se ofreció.
+  function registrarOfertaProactiva() {
+    ofertaProactivaHechaRef.current = true;
   }
 
   // Criterio de elegibilidad para pedir feedback al cerrar: conversación con
@@ -557,26 +614,19 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     const mensajeActual = history[history.length - 1]?.content ?? "";
     const historialPrevio = history.slice(0, -1).map(({ role, content }) => ({ role, content }));
 
-    let held = "";
     let finalText = "";
-    let revealed = false;
     let crisisTriggered = false;
 
     const sesionId = obtenerSesionAnonima();
     await streamChat(mensajeActual, historialPrevio, sesionId, {
+      // El servidor (api/o-chat/public/route.ts) ya filtra "[CRISIS]" antes
+      // de emitir cualquier evento "text" — nunca llega al cliente texto
+      // crudo que contenga el sentinel, así que acá no hace falta un
+      // segundo buffer retenedor (antes había uno duplicado que nunca podía
+      // dispararse en la práctica).
       onText: (delta) => {
         finalText += delta;
-        if (revealed) {
-          setPendingText((prev) => prev + delta);
-          return;
-        }
-        held += delta;
-        // Mientras el texto acumulado siga siendo un posible prefijo del
-        // sentinel de crisis, lo retenemos sin mostrarlo — así nunca se
-        // alcanza a ver "[CRI..." en pantalla si termina siendo una crisis.
-        if (CRISIS_SENTINEL.startsWith(held)) return;
-        revealed = true;
-        setPendingText(held);
+        setPendingText((prev) => prev + delta);
       },
       onCrisis: () => {
         crisisTriggered = true;
@@ -593,7 +643,6 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
           // junto con la misma tarjeta de elección (COMENZAR + alternativas)
           // que usa la detección por síntomas, para que el usuario decida.
           const ejercicioPropuesto = detectarEjercicioPorSentinel(text);
-          const totalMensajesActual = history.length + 1;
 
           if (ejercicioPropuesto) {
             const contenidoLimpio = limpiarEtiquetas(text);
@@ -601,13 +650,20 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
             const previas = partes.slice(0, -1).map((p) => makeMessage("assistant", p));
             const ultima = partes[partes.length - 1];
 
-            // Antiespam: si todavía no pasaron 7 mensajes desde la última
-            // oferta (de cualquier tipo), no mostramos la tarjeta — solo el
-            // texto de O, limpio del sentinel.
-            if (!puedeOfrecerAhora(totalMensajesActual)) {
+            // Si el usuario mismo pidió justo este ejercicio en su último
+            // mensaje (por nombre o de forma genérica), el sentinel de O es
+            // una respuesta a un pedido explícito, no una oferta proactiva —
+            // no debe consumir el límite de una oferta por sesión ni
+            // respetarlo. Si Claude lo propone por su cuenta (sin que el
+            // usuario lo pidiera), sí es proactivo y respeta el límite.
+            const previaDeteccion = detectarEjercicioRecomendado(mensajeActual);
+            const usuarioLoPidioExplicito =
+              previaDeteccion !== null && previaDeteccion.esExplicito && previaDeteccion.exercise === ejercicioPropuesto;
+
+            if (!usuarioLoPidioExplicito && !puedeOfrecerAhora()) {
               setMessages((prev) => [...prev, ...previas, makeMessage("assistant", ultima)]);
             } else {
-              registrarOferta(ejercicioPropuesto, totalMensajesActual);
+              if (!usuarioLoPidioExplicito) registrarOfertaProactiva();
               setMessages((prev) => [
                 ...prev,
                 ...previas,
@@ -637,27 +693,56 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
               // prompt), así que acá no corremos detectarEjercicioRecomendado.
               setMessages((prev) => [...prev, { ...makeMessage("assistant", ""), contactoLuis: true }]);
             } else if (preguntaLuis) {
-              // Queda esperando el "sí"/"no" del usuario en handleFreeformSubmit
-              // — no se ofrece nada más mientras tanto.
-              setEsperandoConfirmacionLuis(true);
+              // PREGUNTA_LUIS siempre es iniciativa de O (a diferencia de
+              // CONTACTO_LUIS, que solo se emite cuando el usuario ya lo
+              // pidió) — por eso, a diferencia de esa rama, acá sí aplica el
+              // límite de una oferta proactiva por sesión, igual que con los
+              // ejercicios. Antes esto no se aplicaba nunca (el prompt
+              // afirmaba que el frontend ya lo bloqueaba, pero no era
+              // cierto para Luis).
+              if (puedeOfrecerAhora()) {
+                registrarOfertaProactiva();
+                // Queda esperando el "sí"/"no" del usuario en
+                // handleFreeformSubmit — no se ofrece nada más mientras tanto.
+                setEsperandoConfirmacionLuis(true);
+              }
+              // Si está bloqueado, el texto de O (la pregunta) ya se mostró
+              // arriba igual — no podemos "des-mostrar" lo que ya escribió —
+              // pero al no activar esperandoConfirmacionLuis, un eventual
+              // "sí" del usuario no dispara la tarjeta.
             } else {
               // Si O ya ofreció una técnica en su propia respuesta (aunque sea
               // sin sentinel todavía), no la ofrecemos otra vez nosotros.
               const oYaOfrecioTecnica = OFRECE_TECNICA_PATTERN.test(text);
-              const recomendacion =
-                oYaOfrecioTecnica || !puedeOfrecerAhora(totalMensajesActual)
-                  ? null
-                  : detectarEjercicioRecomendado(mensajeActual);
+              const deteccion = detectarEjercicioRecomendado(mensajeActual);
+              // Un pedido EXPLÍCITO del usuario (por nombre o genérico)
+              // siempre se atiende, incluso si O ya hizo su única oferta
+              // proactiva de la sesión. Solo la inferencia implícita (pareja
+              // -> Gottman) respeta ese límite.
+              const bloqueadoPorLimiteSesion = deteccion !== null && !deteccion.esExplicito && !puedeOfrecerAhora();
+              const recomendacion = oYaOfrecioTecnica || bloqueadoPorLimiteSesion ? null : deteccion;
               if (recomendacion) {
-                registrarOferta(recomendacion.exercise, totalMensajesActual);
+                // Solo la inferencia implícita consume el límite de una
+                // oferta proactiva por sesión — un pedido explícito no
+                // debería impedir que O ayude proactivamente más adelante.
+                if (!recomendacion.esExplicito) registrarOfertaProactiva();
                 // Paso 1: preguntar de forma genérica antes de mostrar las
                 // opciones — recién en el paso 2 (confirmación del usuario)
                 // se revela cuál técnica y sus alternativas.
                 setEsperandoConfirmacionEjercicio(recomendacion.exercise);
-                setMessages((prev) => [...prev, makeMessage("assistant", PREGUNTA_CONFIRMACION_EJERCICIO)]);
+                setMessages((prev) => [...prev, makeMessage("assistant", preguntaConfirmacion(recomendacion.exercise))]);
               }
             }
           }
+        } else if (!crisisTriggered) {
+          // El modelo devolvió una respuesta vacía tras limpiar etiquetas
+          // (poco común, pero puede pasar). Antes esto no mostraba nada: el
+          // indicador de "escribiendo" desaparecía y no quedaba ningún
+          // mensaje ni error — se veía exactamente como un silencio de O.
+          setMessages((prev) => [
+            ...prev,
+            makeMessage("assistant", "Disculpa, no me salió una respuesta. ¿Puedes repetir lo último que me contabas?"),
+          ]);
         }
       },
       onError: (message) => {
@@ -668,15 +753,6 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     });
   }
 
-  // function handleQ1Chip(chip: { text: string; area: Area }) {  // TODO: reactivar para programa Q1
-  //   if (isStreaming || crisis) return;
-  //   const history = [...messages, makeMessage("user", chip.text)];
-  //   setMessages(history);
-  //   setArea(chip.area);
-  //   setStep(chip.area === "urgente" ? "recommendation" : "q2");
-  //   void askBot(history);
-  // }
-
   function handleChipClick(frase: string) {
     if (isStreaming || crisis) return;
     const history = [...messages, makeMessage("user", frase)];
@@ -684,14 +760,6 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     // Igual que el input libre: la frase va directo a O vía API, sin pasar
     // por el flujo guiado Q2/recomendación.
     setStep("freeform");
-    void askBot(history);
-  }
-
-  function handleQ2Chip(text: string) {
-    if (isStreaming || crisis || !area) return;
-    const history = [...messages, makeMessage("user", text)];
-    setMessages(history);
-    setStep("recommendation");
     void askBot(history);
   }
 
@@ -707,10 +775,17 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
     // del flujo guiado — los chips de q1/q2 no deben seguir mostrándose.
     setStep("freeform");
 
+    // Rechazo explícito de una tarjeta ya mostrada (con el ejercicio nombrado
+    // y sus alternativas visibles): si el usuario responde "no" en texto
+    // libre en vez de tocar un botón, registramos el rechazo para no volver a
+    // sugerir esa categoría por iniciativa propia en el resto de la sesión.
     // Paso 2 del flujo de confirmación: si le habíamos preguntado "¿te
     // parece?" y el usuario confirma, mostramos ahora la tarjeta con el
     // ejercicio y sus alternativas — sin pasar por O. Si rechaza o responde
-    // algo neutral, seguimos la conversación normal con O.
+    // algo neutral, seguimos la conversación normal con O. Ya no hace falta
+    // registrar el rechazo: el límite de una oferta proactiva por sesión
+    // (ofertaProactivaHechaRef) ya impide cualquier nueva oferta espontánea
+    // de acá en adelante, la haya rechazado o no.
     if (esperandoConfirmacionEjercicio) {
       const ejercicioPendiente = esperandoConfirmacionEjercicio;
       setEsperandoConfirmacionEjercicio(null);
@@ -759,8 +834,6 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
   }
 
   const showQ1Chips = step === "q1" && !isStreaming && !crisis;
-  const showQ2Chips =
-    step === "q2" && !isStreaming && !crisis && area && area !== "urgente";
 
   if (!open) return null;
 
@@ -819,9 +892,10 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
-                    // Antiespam: acaba de completar este ejercicio — rearma el
-                    // cooldown para que O no ofrezca nada nuevo de inmediato.
-                    registrarOferta("respiracion", nuevosMensajes.length);
+                    // Cuenta como la oferta proactiva de la sesión (por si se
+                    // llegó acá vía deep-link ?exercise=... sin pasar por el
+                    // flujo normal de oferta) — O no propone nada más solo.
+                    registrarOfertaProactiva();
 
                     // O responde automáticamente con refuerzo personalizado
                     setTimeout(() => {
@@ -856,7 +930,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     const respuestaTexto = `He llegado a un ${valor} de presencia (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
-                    registrarOferta("grounding", nuevosMensajes.length);
+                    registrarOfertaProactiva();
                     setTimeout(() => {
                       void askBot(nuevosMensajes);
                     }, 500);
@@ -889,7 +963,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
-                    registrarOferta("pendulacion", nuevosMensajes.length);
+                    registrarOfertaProactiva();
                     setTimeout(() => {
                       void askBot(nuevosMensajes);
                     }, 500);
@@ -922,7 +996,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                     const respuestaTexto = `He llegado a un ${valor} de calma (0-10)`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
-                    registrarOferta("cuadrada", nuevosMensajes.length);
+                    registrarOfertaProactiva();
                     setTimeout(() => {
                       void askBot(nuevosMensajes);
                     }, 500);
@@ -962,7 +1036,7 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
                           )}.`;
                     const nuevosMensajes = [...messages, makeMessage("user", respuestaTexto)];
                     setMessages(nuevosMensajes);
-                    registrarOferta("gottman", nuevosMensajes.length);
+                    registrarOfertaProactiva();
                     setTimeout(() => {
                       void askBot(nuevosMensajes);
                     }, 500);
@@ -1074,31 +1148,18 @@ export default function SalesBot({ open, onClose }: SalesBotProps) {
         </div>
 
         {/* Chips de respuesta rápida */}
-        {(showQ1Chips || showQ2Chips) && (
+        {showQ1Chips && (
           <div className="flex flex-wrap gap-2 border-t border-[#e3f3ee] bg-white px-3.5 pt-3">
-            {showQ1Chips &&
-              frasesHoy.map((frase) => (
-                <button
-                  key={frase}
-                  type="button"
-                  onClick={() => handleChipClick(frase)}
-                  className="rounded-full border border-[#c7ebe0] bg-[rgba(29,158,117,0.06)] px-3 py-1.5 text-xs text-[#1a4d4d] transition-colors hover:border-[#1D9E75] hover:bg-[rgba(29,158,117,0.12)]"
-                >
-                  {frase}
-                </button>
-              ))}
-            {showQ2Chips &&
-              area &&
-              Q2_CHIPS[area].map((text) => (
-                <button
-                  key={text}
-                  type="button"
-                  onClick={() => handleQ2Chip(text)}
-                  className="rounded-full border border-[#c7ebe0] bg-[rgba(29,158,117,0.06)] px-3 py-1.5 text-xs text-[#1a4d4d] transition-colors hover:border-[#1D9E75] hover:bg-[rgba(29,158,117,0.12)]"
-                >
-                  {text}
-                </button>
-              ))}
+            {frasesHoy.map((frase) => (
+              <button
+                key={frase}
+                type="button"
+                onClick={() => handleChipClick(frase)}
+                className="rounded-full border border-[#c7ebe0] bg-[rgba(29,158,117,0.06)] px-3 py-1.5 text-xs text-[#1a4d4d] transition-colors hover:border-[#1D9E75] hover:bg-[rgba(29,158,117,0.12)]"
+              >
+                {frase}
+              </button>
+            ))}
           </div>
         )}
 
