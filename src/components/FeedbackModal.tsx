@@ -21,7 +21,7 @@ export default function FeedbackModal({ sessionId, onFinish }: FeedbackModalProp
     if (rating === 0 || enviando) return;
     setEnviando(true);
     try {
-      await fetch("/api/feedback/create", {
+      const res = await fetch("/api/feedback/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -30,8 +30,14 @@ export default function FeedbackModal({ sessionId, onFinish }: FeedbackModalProp
           comment: comment.trim() || null,
         }),
       });
-    } catch {
-      // No bloqueamos la salida del usuario por un error de red al guardar.
+      // No bloqueamos la salida del usuario si el guardado falla (ver catch
+      // más abajo) — pero antes esto fallaba en silencio total, sin dejar
+      // ni un log. Al menos queda visible en la consola para detectarlo.
+      if (!res.ok) {
+        console.error("No se pudo guardar el feedback:", await res.text().catch(() => res.status));
+      }
+    } catch (err) {
+      console.error("Error de red guardando feedback:", err);
     } finally {
       onFinish();
     }

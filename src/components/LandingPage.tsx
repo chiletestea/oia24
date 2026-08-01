@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import EvaluacionesCarousel from './EvaluacionesCarousel';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -157,6 +158,9 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* CARRUSEL DE EVALUACIONES - después de la sección de características */}
+      <EvaluacionesCarousel />
 
       {/* MODAL - EJERCICIOS */}
       {activeModal === 'exercises' && (

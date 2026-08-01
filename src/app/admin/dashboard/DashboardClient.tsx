@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Metricas } from "@/lib/admin-metrics";
+import EvaluacionesSection from "./EvaluacionesSection";
 
 type Periodo = "hoy" | "semana" | "mes" | "todo";
 
@@ -125,6 +126,8 @@ export default function DashboardClient() {
           </div>
         </>
       )}
+
+      <EvaluacionesSection />
     </div>
   );
 }
